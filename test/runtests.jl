@@ -1,5 +1,15 @@
 using Visualize
 using Base.Test
 
-# write your own tests here
-@test 1 == 2
+
+function Canvas()
+
+
+
+end
+canvas = Canvas()
+
+x = visualize(img)#::DictionaryLike
+
+
+show(canvas, x)
