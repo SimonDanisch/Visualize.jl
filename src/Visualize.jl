@@ -1,8 +1,7 @@
 module Visualize
 
-using Colors, StaticArrays, Quaternions
-
-include("composedtype.jl")
+using Colors, StaticArrays, Quaternions, FieldTraits
+import Base: scale!
 
 include("base.jl")
 

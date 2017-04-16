@@ -12,14 +12,15 @@ macro reactivecomposed(expr)
 end
 
 @propagate_inbounds function setindex!{F <: Field}(ct::ReactiveComposable, value, field::Type{F})
+    _setindex!(ct, value, field)
     links = ct[Links]
     if haskey(links, field)
         link = links[field]
-        for (func, args) in link
-            func(value, args...)
+        for (func, fields, args) in link
+            func(map(f-> ct[f], fields)..., args...)
         end
     end
-    _setindex!(ct, value, field)
+    value
 end
 
 
@@ -35,10 +36,21 @@ function link!{F <: Field}(::Type{F}, pair::Pair{ReactiveComposable, Composable}
         b[F] = val
     end
 end
-function on(F, field::Field, object::ReactiveComposable, args...)
+
+function on(F, object::ReactiveComposable, head, tail...)
     links = object[Links]
-    if haskey(links, field)
-        # adds a callback to the field
-        push!(links[field], (F, args))
+    args = (head, tail...)
+    _fields = []
+    field, state = first(args), start(args)
+    while field <: Field # find the first n fields
+        push!(_fields, field)
+        field, state = next(args, state)
+    end
+    fields = (_fields...,)
+    for field in fields
+        if haskey(links, field)
+            # adds a callback to the field
+            push!(links[field], (F, fields, args))
+        end
     end
 end

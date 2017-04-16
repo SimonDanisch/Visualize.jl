@@ -42,6 +42,15 @@ global const windowcallbacks = WindowEvents(
 )
 
 
+"""
+[GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
+"""
+function mouse_position(window, events)
+    GLFW.SetCursorPosCallback(window, (window, x, y) -> begin
+        events[MousePosition] = (x, y)
+    end)
+    return
+end
 
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__window.html#gaade9264e79fae52bdb78e2df11ee8d6a)
@@ -109,15 +118,7 @@ function unicode_input(window, events)
     end)
     s
 end
-"""
-[GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
-"""
-function mouse_position(window, events)
-    GLFW.SetCursorPosCallback(window, (window, x::Cdouble, y::Cdouble) -> begin
-        push!(s, Vec{2, Float64}(x, y))
-    end)
-    s
-end
+
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#gacc95e259ad21d4f666faa6280d4018fd)
 """

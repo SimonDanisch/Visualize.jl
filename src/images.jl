@@ -1,27 +1,53 @@
-@field ImageData
-@field SpatialOrder begin
-    
-@field Ranges
+@field SpatialOrder = (1, 2) # default value for SpatialOrder (xy)
+
+"""
+Determines what the order of the dimensions is.
+Can be a symbol or string like: xyz, yx, etc,
+or a tuple with the indices of the dimensions, exactly like how you would pass it
+to permutedims.
+"""
+SpatialOrder
 
 @composed type Image
+    <: Shared
     ImageData
     Ranges
-    SpatialOrder::Tuple{Integer, Integer}
-    Transform
+    SpatialOrder::NTuple{2, Int}
 end
-function Base.convert(::Image, spatialorder::SpatialOrder, value)
-    if !(spatialorder in (:xy, :yx))
-        error("Spatial order only accepts :xy or :yz as a value. Found: $spatialorder")
+# Do a custom convert for SpatialOrder. Parent is left untyped, since this should apply
+# to all SpatialOrders in all parent composables.
+# If you need to overwrite behaviour if SpatialOrder is part of another composable, you just need to type parent
+function Base.convert(::Type{SpatialOrder}, parent, value)
+    usage = Docs.doc(Transform)
+    data = x[ImageData]
+    N = ndims(data)
+    if isa(value, Tuple) &&
+        if eltype(value) == Int || length(value) != N
+            throw(UsageError(SpatialOrder, value))
+        end
+        return value
     end
-    spatialorder == :xy ? (1, 2) : (2, 1)
+    str = if isa(value, Symbol)
+        string(value)
+    elseif isa(value, String)
+        value
+    else
+        throw(UsageError(SpatialOrder, value))
+    end
+    if length(str) != N
+        throw(UsageError(SpatialOrder, value))
+    end
+    ntuple(length(str)) do i
+        idx = findfirst(('x', 'y', 'z', 't'), str[i])
+        if idx == 0
+            throw(UsageError(SpatialOrder, value))
+        end
+        idx
+    end
 end
-default(x::Image, ::SpatialOrder) = (1, 2)
 
-function default(x::Image, ::Ranges)
-    data = x[Data]
-    spatialorder = x[SpatialOrder]
-    (
-        0:size(m, s === :xy ? 1 : 2),
-        0:size(m, s === :xy ? 2 : 1)
-    )
+function default(x, ::Type{Ranges})
+    data = x[ImageData]
+    s = get(x, SpatialOrder) # if SpatialOrder in x, gets that, if not gets default(x, SpatialOrder)
+    (0:size(data, s[1]), 0:size(data, s[2]))
 end
