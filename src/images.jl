@@ -8,6 +8,21 @@ to permutedims.
 """
 SpatialOrder
 
+@field ImageData
+@field Ranges
+"""
+Ranges indicate, on what an otherwise dimensionless visualization should be mapped.
+E.g. use Ranges to indicate that an image should be mapped to a certain range.
+"""
+Ranges
+
+function default(x, ::Type{Ranges})
+    @needs x: data = ImageData
+    s = get(x, SpatialOrder) # if SpatialOrder in x, gets that, if not gets default(x, SpatialOrder)
+    (0:size(data, s[1]), 0:size(data, s[2]))
+end
+
+
 @composed type Image
     <: Shared
     ImageData
@@ -47,7 +62,7 @@ function Base.convert(::Type{SpatialOrder}, parent, value)
 end
 
 function default(x, ::Type{Ranges})
-    data = x[ImageData]
+    @needs x: data = ImageData
     s = get(x, SpatialOrder) # if SpatialOrder in x, gets that, if not gets default(x, SpatialOrder)
     (0:size(data, s[1]), 0:size(data, s[2]))
 end

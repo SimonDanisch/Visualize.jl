@@ -1,30 +1,33 @@
-using Compat, GLWindow
 @compat abstract type WindowEvent <: Field end
 
 module Mouse
     using FieldTraits
     using FieldTraits: @field
-    import Main: WindowEvent
+    import ..Visualize: WindowEvent
+
     @enum Button left = 0 middle = 2 right = 1 # Be GLFW conform
     @enum DragEnum down up pressed notpressed
 
-    @field Drag <: WindowEvent = Mouse.notpressed
+    @field Drag <: WindowEvent = notpressed
     @field Position <: WindowEvent = (0, 0)
     @field Inside <: WindowEvent = false
-    @field Buttons <: WindowEvent = Set(Mouse.Button[])
+    @field Buttons <: WindowEvent = Set(Button[])
     @field Scroll <: WindowEvent = (0, 0)
 end
 
+include("keyboard.jl")
 
-@field Window = GLWindow.create_glcontext()
+@field Window
+
+function default(parent, ::Type{Window})
+    GLWindow.create_glcontext()
+end
+
 @field WindowOpen <: WindowEvent = false
 @field WindowSize <: WindowEvent = (0, 0)
 @field WindowPosition <: WindowEvent = (0, 0)
 @field EnteredWindow <: WindowEvent = false
 @field HasFocus <: WindowEvent = false
-@field KeyboardButtons <: WindowEvent = Set(Int[])
-@field UnicodeInput <: WindowEvent = Nullable{Char}()
-
 @field DroppedFiles <: WindowEvent = String[]
 
 # Complex events
@@ -34,9 +37,8 @@ end
 
 @reactivecomposed type WindowEvents
     Window
+    Area
     WindowOpen
-    WindowSize
-    WindowPosition
     EnteredWindow
     HasFocus
 
@@ -46,36 +48,32 @@ end
     Mouse.Scroll
     Mouse.Drag
 
-    KeyboardButtons
-    UnicodeInput
+    Keyboard.Buttons
+    Keyboard.Unicode
 
     DroppedFiles
     # Complex events
     # Mouse2Object
 end
+
+@composed type Camera <: ReactiveComposable
+    Area
+    View
+    Projection
+end
+
+@composed type Canvas <: ReactiveComposable
+    <: Shared
+    <: WindowEvents
+    Spacetransform
+end
+
 #
 # # Window Events are global to the window
 # global const isregistered = WindowEvents(
 #     ntuple(x-> false, nfields(WindowEvents))...
 # )
-#
-# function on(
-#         f, ::Type{MouseDrag}, composed::Composable,
-#         args...; start_condition = true
-#     )
-#     dragging = false; startposition = composed[MousePosition];
-#     on(MousePosition, composed) do mp
-#         mousebutton = composed[MouseButon]
-#         if mousebutton == :down && !dragging && start_condition
-#             startposition = mp
-#             f(false, startposition, mp, args...) # just started, so dragging is still false
-#         elseif mousebutton == :down && dragging
-#             f(true, startposition, mp, args...)
-#         else
-#             dragging = false
-#         end
-#     end
-# end
+
 # function register_callback(::Type{LeftClick}, composed::Composable)
 # end
 # function register_callback(::Type{MiddleClick}, composed::Composable)
