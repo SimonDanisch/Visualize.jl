@@ -54,7 +54,7 @@ function selection_rect(
         key = Mouse.left,
         button = Set([Keyboard.left_control, Keyboard.space])
     )
-    @needs canvas: Mouse.Drag
+    @needs canvas: Mouse.Drag, Mouse.Position
     rect = IRect(0, 0, 0, 0)
     lw = 2f0
     rect_vis = visualize(
@@ -65,10 +65,10 @@ function selection_rect(
     )
     dragged_rect = on(canvas, Mouse.Drag) do drag
         if ispressed(canvas, key) && ispressed(canvas, button)
-            if drag = Mouse.down
+            if drag == Mouse.down
                 rect_vis[Visible] = true # start displaying
                 rect_vis[Primitive] = IRect(canvas[Mouse.Position], 0, 0)
-            elseif drag = Mouse.pressed
+            elseif drag == Mouse.pressed
                 min = minimum(rect_vis[Primitive])
                 wh = canvas[Mouse.Position] - min
                 rect_vis[Primitive] = IRect(min, wh)
@@ -114,7 +114,7 @@ immutable GLProgram{T}
     program::T
     # rather static renderlist for long lived renderables
     # it's optimized for few keys and large vectors with a single element type
-    renderlist::Dict{Type, Vector}
+    renderlist::Vector{T}
     # stack for objects only rendered for one frame. Will get emptied after every render call
     render_once::Vector
 end
@@ -130,7 +130,89 @@ function push!(program, renderable::T)
 
 end
 function render{T}(program, vec::Vector{T})
+    bind(program)
     for elem in vec
-        render(program, elem)
+        bind(elem)
     end
 end
+
+@generated function bind{T <: Composable}(c::T)
+    fields = Fields(T)
+    expr = Expr(:block)
+    for (i, field) in enumerate(fields)
+        push!(expr.args, :(bind($i, c[$field])))
+    end
+    expr
+end
+
+
+function standard_render(fragment_stage, vertex, projection_view_model, objectid, space_transform)
+    fragment_stage.uv = vertex.texturecoordinate
+    fragment_stage.objectid = (objectid, gl_vertexid())
+    GL.position = projection_view_model * vec4(space_transform(vertex.position))
+end
+
+function standard_fragment(vertex_stage, image, ::Val{spatial_order})
+    color = image[vertex_stage.uv[spatial_order]]
+    write2framebuffer(color, vertex_stage.objectid)
+end
+
+function write2framebuffer(color, id)
+    Fragment.color = color
+    if color.a > 0.5
+        gl_FragDepth = GL.fragcoord[3]
+    else
+        gl_FragDepth = 1.0
+    end
+    Fragment.groupid = id
+end
+
+
+
+
+vert = """
+{{GLSL_VERSION}}
+layout(location = 0) in Vertex{
+    vec2 position;
+    vec2 texturecoordinate;
+};
+
+layout(location = 2) uniform mat4 projection_view_model;
+layout(location = 3) uniform uint objectid;
+
+out vec2 o_uv;
+flat out uvec2 o_objectid;
+
+
+void main(){
+    o_uv = texturecoordinates;
+    o_objectid = uvec2(objectid, gl_VertexID+1);
+    gl_Position = projection_view_model * vec4(vertices, 0, 1);
+}
+"""
+
+frag = """
+in vec2 o_uv;
+flat in uvec2 o_objectid;
+out vec4 fragment_color;
+out uvec2 fragment_groupid;
+
+{{image_type}} image;
+
+vec4 getindex(sampler2D image, vec2 uv){
+	return texture(image, uv);
+}
+vec4 getindex(sampler1D image, vec2 uv){
+	return texture(image, uv.x);
+}
+
+
+void write2framebuffer(vec4 color, uvec2 id);
+
+void main(){
+    write2framebuffer(
+        getindex(image, {{uv_swizzle}}),
+        o_objectid
+    );
+}
+"""
