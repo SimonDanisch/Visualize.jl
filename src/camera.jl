@@ -171,48 +171,35 @@ end
 
 
 vert = """
-{{GLSL_VERSION}}
-layout(location = 0) in Vertex{
-    vec2 position;
-    vec2 texturecoordinate;
+layout(binding = 0) uniform Canvas
+{
+    vec2 resolution;
+    mat4 projection;
+    mat4 view;
+    mat4 PxVxM; // projection * view * model matrix
 };
 
-layout(location = 2) uniform mat4 projection_view_model;
-layout(location = 3) uniform uint objectid;
+layout(location = 0) in vec2 position;
+layout(location = 1) in vec2 texturecoordinate;
+
+
 
 out vec2 o_uv;
-flat out uvec2 o_objectid;
-
 
 void main(){
-    o_uv = texturecoordinates;
+    o_uv = texturecoordinate;
     o_objectid = uvec2(objectid, gl_VertexID+1);
-    gl_Position = projection_view_model * vec4(vertices, 0, 1);
+    gl_Position = Canvas.PxVxM * vec4(position, 0, 1);
 }
 """
 
 frag = """
 in vec2 o_uv;
-flat in uvec2 o_objectid;
+uniform sampler2D image;
+
 out vec4 fragment_color;
-out uvec2 fragment_groupid;
-
-{{image_type}} image;
-
-vec4 getindex(sampler2D image, vec2 uv){
-	return texture(image, uv);
-}
-vec4 getindex(sampler1D image, vec2 uv){
-	return texture(image, uv.x);
-}
-
-
-void write2framebuffer(vec4 color, uvec2 id);
 
 void main(){
-    write2framebuffer(
-        getindex(image, {{uv_swizzle}}),
-        o_objectid
-    );
+    fragment_color = texture(image, o_uv);
 }
 """

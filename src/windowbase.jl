@@ -61,7 +61,6 @@ end
     View
     Projection
 end
-
 @composed type Canvas <: ReactiveComposable
     <: Shared
     <: WindowEvents

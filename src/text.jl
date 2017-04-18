@@ -55,7 +55,7 @@ function GLAbstraction.GLVertexArray(buffer::Array, program::GLProgram)
 end
 
 function GLAbstraction.GLVertexArray{T}(buffer::GLBuffer{T}, program::GLProgram)
-    id  = glGenVertexArrays()
+    id = glGenVertexArrays()
     glBindVertexArray(id)
     GLAbstraction.bind(buffer)
     for (i, name) in enumerate(fieldnames(T))

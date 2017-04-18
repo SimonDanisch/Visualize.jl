@@ -24,7 +24,6 @@ end
 
 
 @composed type Image
-    <: Shared
     ImageData
     Ranges
     SpatialOrder::NTuple{2, Int}
