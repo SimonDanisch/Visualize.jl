@@ -123,14 +123,14 @@ function FieldTraits.default{(::Type{Image}, ::Field{Ranges}, incomplete)
 end
 ```
 
-We use tuples of pairs to have allow the user to define statically inferable incomplete sets of attributes:
+We use tuples of pairs to allow the user to define statically inferable incomplete sets of attributes:
 and it will end up in the `default` function as the `incomplete` argument:
 ```Julia
 image = Image((ImageData => load("test.jpg"), ))
 ```
 Now we might want to write backend independent visualization code, but still need to convert to backend specific types
-when displaying with a certain backend.
-FieldTraits defines conversions for `GLImage(image::Image)` for that purpose,
+when displaying them with a certain backend.
+`FieldTraits defines` conversions for `GLImage(image::Image)` for that purpose,
 which will fill in defaults that are only needed by the OpenGL backend, do the proper conversion
 and ignores fields that the OpenGL backend isn't able to use!
 
@@ -158,7 +158,7 @@ end
 Theme = MyTheme()
 Surface(Theme, (Data => rand(10, 10), Bla => ...))
 ```
-Now, the all attributes that are not in the incomplete attributes from the user will be taken from the theme!
+Now, the attributes that are not in the incomplete attributes from the user will be taken from the theme!
 We still need to figure out a nice way to give a surface a colormap default for the Color field in this example.
 Maybe something like this will be workable:
 ```Julia
