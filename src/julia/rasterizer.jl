@@ -41,7 +41,7 @@ function rasterize!{N}(
                 edge_function(f[1], f[2], p)
             )
             yi, xi = round(Int, y), round(Int, x)
-            if all(w-> w > 0f0, w) && checkbounds(Bool, framebuffer[1], yi, xi)
+            if all(w-> w >= 0f0, w) && checkbounds(Bool, framebuffer[1], yi, xi)
                 bary = w ./ area
                 depth = bary[1] * depths[1] + bary[2] * depths[2] + bary[3] * depths[3]
 
