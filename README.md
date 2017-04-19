@@ -67,7 +67,7 @@ end
 This pattern becomes even more powerful when different backends are involved!
 Most field semantics and documentations are shared, but we might need to
 convert to slightly different types to work with the backend:
-```
+```Julia
 @composed Image
     ImageData
     #other fields...
