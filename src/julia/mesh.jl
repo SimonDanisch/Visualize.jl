@@ -19,9 +19,7 @@ function blinnphong{NV, T}(V, N, L::Vec{NV, T}, color, shading, light)
     diff_coeff = max(dot(L, N), T(0f0))
     H = normalize(L + V)
     spec_coeff = max(dot(H, N), T(0.0)) ^ (shading.shininess)
-    if diff_coeff <= T(0.0)
-        spec_coeff = T(0.0)
-    end
+    diff_coeff <= T(0.0) && (spec_coeff = T(0.0))
     return Vec3f0(
         light.ambient .* shading.ambient .+
         light.diffuse .* light.diffuse_power .* color * diff_coeff .+
