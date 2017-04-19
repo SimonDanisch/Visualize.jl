@@ -17,7 +17,7 @@ function rasterize!{N}(
     resolution = Vec2f0(size(first(framebuffer))) - 1f0
 
     map(vertex_array) do face
-        # Bounding rectangle
+        
         vertex_stage = map(reverse(face)) do f
             vertex_shader(f, vertex_args)
         end
@@ -30,6 +30,7 @@ function rasterize!{N}(
         f = map(first, fdepth)
         depths = map(last, fdepth)
         vertex_out = map(last, vertex_stage)
+        # Bounding rectangle
         mini = reduce(min, f)
         maxi = reduce(max, f)
         area = edge_function(f[1], f[2], f[3])

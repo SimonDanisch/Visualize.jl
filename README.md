@@ -7,6 +7,9 @@
 [![codecov.io](http://codecov.io/github/SimonDanisch/Visualize.jl/coverage.svg?branch=master)](http://codecov.io/github/SimonDanisch/Visualize.jl?branch=master)
 
 
+Successor of [GLVisualize](https://github.com/JuliaGL/GLVisualize.jl/)
+
+
 # API design
 
 Visualize will heavily rely on [FieldTraits](https://github.com/SimonDanisch/FieldTraits.jl).
