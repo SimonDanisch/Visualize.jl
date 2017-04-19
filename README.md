@@ -81,7 +81,7 @@ abstract type GLVisualizable <: Composable end
 end
 # now we can also just create a catchall conversion for any GLVisualizable:
 function Base.convert{T <: GLVisualizable, F <: Field}(::Type{T}, ::Type{F}, value)
-     # GLAbstraction already have an automatic conversion function, which converts e.g. Float64 to Float32
+     # GLAbstraction already has an automatic conversion function, which converts e.g. Float64 to Float32
      # and Arrays to buffers and so forth
     GLAbstraction.gl_convert(value)
 end
