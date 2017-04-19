@@ -1,15 +1,18 @@
 using GLAbstraction, GeometryTypes, FieldTraits, Visualize, Colors, ModernGL
 using FieldTraits: @composed, cfieldtype, @field
-using Visualize: ImageData, Primitive, SpatialOrder
+using Visualize: ImageData, Primitive, SpatialOrder, FRect, Ranges
+
 @field MeshResolution
+
 """
 Supplies the resolution of a mesh. This field will be used when converting a
 GeometryPrimitive to a mesh
 """
 MeshResolution
 
+
 type VertexArray{T}
-    id::ModernGL.GLuint
+    id::GLuint
     length::Int
     indices::T
     context::GLAbstraction.GLContext
@@ -83,22 +86,49 @@ function Base.convert{T <: GLImage}(::Type{T}, ::Type{Primitive}, image::FieldTr
         x
     else
         r = get(image, Ranges)
-        mins = minimum.(r)
-        maxs = maximum.(r)
-        HyperRectangle(mins, maxs .- mins)
+        mins = Vec(minimum.(r))
+        maxs = Vec(maximum.(r))
+        FRect(mins, maxs .- mins)
     end
     resolution = get(image, MeshResolution, (2, 2))
     VertexArray(uvmesh(prim, resolution), 1)
 end
 
-function show(canvas::GLCanvas, glimage::GLImage)
-    shader = GLVisualizeShader(
-        "fragment_output.frag", "uv_vert.vert", "texture.frag",
-        view = Dict("uv_swizzle" => "o_uv.$(spatialorder)")
-    )
-end
 events = Visualize.WindowEvents()
 import Visualize: Image
 test = Image(ImageData => rand(RGB{Float32}, 512, 512))
 test = GLImage(test)
-test[ImageData]
+
+
+function show(canvas::GLCanvas, glimage::GLImage)
+    shader = GLVisualizeShader(
+        "test.frag", "test.vert",
+    )
+end
+
+
+function execute_program(vertexarray, vertexshader, fragmentshader)
+
+    map(enumerate(vertexarray)) do i, face
+        gl = VertexData(i)
+        vertex_stage = vertexshader.(gl, face)
+        gl.position
+
+    end
+end
+
+using GeometryTypes
+
+framebuffer = zeros(500, 500)
+face = (Point2f0(1, 1), Point2f0(100, 100), Point2f0(100, 1))
+rasterize2(framebuffer, face)
+
+using FileIO
+save("test.png", framebuffer)
+
+inhalfspace(30, 30, face)
+test = 1
+for y = mini[2]:maxi[2], x = mini[1]:maxi[1]
+    test += 1
+end
+test
