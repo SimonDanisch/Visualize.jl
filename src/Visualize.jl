@@ -14,8 +14,9 @@ include("base.jl")
 include("windowbase.jl")
 include("events.jl")
 include("images.jl")
+include("perspective_camera.jl")
 
-#include("opengl/opengl.jl")
+include("opengl/opengl.jl")
 
 
 end # module

@@ -3,11 +3,12 @@
 @field Rotation = Quaternion(1, 0, 0, 0)
 @field Scale = Vec3f0(1)
 @field Position = Vec3f0(0)
+@field Translation = Vec3f0(0)
 
 @composed type Transform
     Scale
     Rotation
-    Position
+    Translation
 end
 
 @field XAxis
@@ -26,6 +27,7 @@ Area
 
 @field Projection = eye(Mat4f0)
 @field View = eye(Mat4f0)
+@field ProjectionView = eye(Mat4f0)
 
 @field BoundingBox = AABB{Float32}()
 

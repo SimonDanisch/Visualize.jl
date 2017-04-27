@@ -1,9 +1,10 @@
-using FieldTraits, GeometryTypes, Visualize
+using FieldTraits, GeometryTypes, Visualize, FileIO
 using FieldTraits: @reactivecomposed, @field, Field, UsageError, @needs, Composable
 import FieldTraits: on, Fields, Links, NoUpdate
 using Visualize: WindowEvents, add!, Mouse, Window, default, translationmatrix, Keyboard
 using Visualize: Camera, orthographicprojection, IRect, FRect, ispressed, View, Area
 import Base: RefValue
+using ModernGL
 
 events = WindowEvents()
 for elem in (Mouse.Position, Mouse.Buttons, Mouse.Drag, Area, Keyboard.Buttons)
@@ -54,7 +55,7 @@ function selection_rect(
         key = Mouse.left,
         button = Set([Keyboard.left_control, Keyboard.space])
     )
-    @needs canvas: Mouse.Drag, Mouse.Position
+    @needs canvas: (Mouse.Drag, Mouse.Position)
     rect = IRect(0, 0, 0, 0)
     lw = 2f0
     rect_vis = visualize(
@@ -106,100 +107,3 @@ cam = Camera()
 add_pan!(cam, events)
 cam[View]
 Keyboard
-
-
-
-immutable GLProgram{T}
-    # the opengl shader program
-    program::T
-    # rather static renderlist for long lived renderables
-    # it's optimized for few keys and large vectors with a single element type
-    renderlist::Vector{T}
-    # stack for objects only rendered for one frame. Will get emptied after every render call
-    render_once::Vector
-end
-
-immutable TimeRange
-    x::UnitRange
-end
-
-function push!(program, renderable::T, time::TimeRange)
-
-end
-function push!(program, renderable::T)
-
-end
-function render{T}(program, vec::Vector{T})
-    bind(program)
-    for elem in vec
-        bind(elem)
-    end
-end
-
-@generated function bind{T <: Composable}(c::T)
-    fields = Fields(T)
-    expr = Expr(:block)
-    for (i, field) in enumerate(fields)
-        push!(expr.args, :(bind($i, c[$field])))
-    end
-    expr
-end
-
-
-function standard_render(fragment_stage, vertex, projection_view_model, objectid, space_transform)
-    fragment_stage.uv = vertex.texturecoordinate
-    fragment_stage.objectid = (objectid, gl_vertexid())
-    GL.position = projection_view_model * vec4(space_transform(vertex.position))
-end
-
-function standard_fragment(vertex_stage, image, ::Val{spatial_order})
-    color = image[vertex_stage.uv[spatial_order]]
-    write2framebuffer(color, vertex_stage.objectid)
-end
-
-function write2framebuffer(color, id)
-    Fragment.color = color
-    if color.a > 0.5
-        gl_FragDepth = GL.fragcoord[3]
-    else
-        gl_FragDepth = 1.0
-    end
-    Fragment.groupid = id
-end
-
-
-
-
-vert = """
-layout(binding = 0) uniform Canvas
-{
-    vec2 resolution;
-    mat4 projection;
-    mat4 view;
-    mat4 PxVxM; // projection * view * model matrix
-};
-
-layout(location = 0) in vec2 position;
-layout(location = 1) in vec2 texturecoordinate;
-
-
-
-out vec2 o_uv;
-
-void main(){
-    o_uv = texturecoordinate;
-    o_objectid = uvec2(objectid, gl_VertexID+1);
-    gl_Position = Canvas.PxVxM * vec4(position, 0, 1);
-}
-"""
-
-frag = """
-in vec2 o_uv;
-uniform sampler2D image;
-
-out vec4 fragment_color;
-
-void main(){
-    fragment_color = texture(image, o_uv);
-}
-"""
