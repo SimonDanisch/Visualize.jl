@@ -197,8 +197,6 @@ uniform_array = UniformBuffer(Tuple{Vec4f0, Mat4f0}, 1024 * 2)
 
 function loadmeshes(folder)
     meshpaths = filter(x-> endswith(x, ".ifs"), readdir(folder))[1:1024]
-    meshpaths = [meshpaths; meshpaths]
-
     faces = GLTriangle[]
     vertices = Tuple{Point3f0, Normal{3, Float32}}[]
     v0 = (Point3f0(typemax(Float32)), Point3f0(typemin(Float32)))
@@ -241,31 +239,38 @@ glBindBufferBase(GL_UNIFORM_BUFFER, 1, uniform_array.buffer.id)
 function rendloop(window, N, frame_times, commandbuff)
     glUseProgram(program)
     glEnable(GL_DEPTH_TEST)
+    glEnable(GL_DEPTH_TEST)
+    glDepthMask(GL_TRUE)
+    glDepthFunc(GL_LEQUAL)
+    glDisable(GL_CULL_FACE)
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
     glClearColor(1, 1, 1, 1)
     GLAbstraction.bind(commandbuff)
     n = 0
     glBindVertexArray(vbo.id)
     while isopen(window) && n <= N
         tic()
-        glFinish() #
         GLWindow.poll_glfw()
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        GLAbstraction.@gputime begin
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        glMultiDrawElementsIndirect(
-            GL_TRIANGLES,
-            GL_UNSIGNED_INT,
-            C_NULL, length(commandbuff), 0
-        )
-        # glBindVertexArray(0)
-        GLWindow.swapbuffers(window)
+            glMultiDrawElementsIndirect(
+                GL_TRIANGLES,
+                GL_UNSIGNED_INT,
+                C_NULL, length(commandbuff), 0
+            )
+            # glBindVertexArray(0)
+            GLWindow.swapbuffers(window)
+        end
         push!(frame_times, toq())
         n += 1
     end
     frame_times
 end
 times = Float64[]
-rendloop(window, 2000, times, commandbuff)
-mean(times) * 1000
+rendloop(window, 60, times, commandbuff)
+median(times) * 1000
 
 
 GLFW.DestroyWindow(window)
@@ -289,3 +294,20 @@ open("test.csv", "w") do io
     end
 end
 println(pwd())
+
+
+for i = 1:100
+    buzz = i % 5 == 0 ? "Buzz" : ""
+    fizz = i % 3 == 0 ? "Fizz" : ""
+    println(fizz*buzz)
+    if buzz || fizz
+        if fizz && buzz
+            println("FizzBuzz")
+        else
+            fizz && println("Buzz")
+            buzz && println("Buzz")
+        end
+    else
+        println(i)
+    end
+end

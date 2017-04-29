@@ -1,4 +1,4 @@
-using GeometryTypes, Colors, GLVisualize, GLWindow, FileIO, GLAbstraction
+using GeometryTypes, Colors, GLVisualize, GLWindow, FileIO, GLAbstraction, ModernGL
 
 function read_ifs(filename)
     open(filename) do io
@@ -29,34 +29,35 @@ function read_ifs(filename)
                 read(io, UInt32)
             )
         end
-        GLNormalMesh(vertices = verts, faces = faces)
+        (verts, faces)
     end
 end
 
+window = glscreen()
 
 function display_data(folder)
     meshpaths = filter(x-> endswith(x, ".ifs"), readdir(folder))[1:1024]
-    meshpaths = [meshpaths; meshpaths]
     v0 = (Point3f0(typemax(Float32)), Point3f0(typemin(Float32)))
+    faces = GLTriangle[]
+    verts = Point3f0[]
+    norms = Normal{3, Float32}[]
+    lastvidx = 0
     for (i, meshpath) in enumerate(meshpaths)
-        mesh = read_ifs(joinpath(folder, meshpath))
-        if isempty(mesh.vertices)
-            println("lol?")
-            continue
-        end
-        mini, maxi = extrema(mesh.vertices)
+        vs, fs = read_ifs(joinpath(folder, meshpath))
+        mini, maxi = extrema(vs)
+        ns = normals(vs, fs)
         x, y = ind2sub((32, 32), i)
-        trans = translationmatrix(Vec3f0(x, y, 0f0))
         s = maximum(maxi .- mini)
-        scale = scalematrix(Vec3f0(1f0 ./ s))
-        _view(visualize(
-            mesh,
-            color = RGBA{Float32}(rand(RGB{Float32}), 1f0),
-            model = trans * scale * translationmatrix(-Vec3f0(mini))
-        ))
+        append!(verts, vs .+ Point3f0(x, y, 0f0))
+        append!(norms, ns)
+        append!(faces, fs .+ lastvidx)
+        lastvidx += length(fs) * 3
     end
+    _view(visualize(
+        GLNormalMesh(faces = faces, vertices = verts, normals = norms),
+        color = RGBA{Float32}(rand(RGB{Float32}), 1f0)
+    ))
 end
-window = glscreen()
 display_data(homedir() * "/3dstuff/models")
 
 
