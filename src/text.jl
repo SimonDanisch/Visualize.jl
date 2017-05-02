@@ -50,36 +50,6 @@ function Sprite{N, T}(
     )
 end
 
-function GLAbstraction.GLVertexArray(buffer::Array, program::GLProgram)
-    GLVertexArray(GLBuffer(buffer), program)
-end
-
-function GLAbstraction.GLVertexArray{T}(buffer::GLBuffer{T}, program::GLProgram)
-    id = glGenVertexArrays()
-    glBindVertexArray(id)
-    GLAbstraction.bind(buffer)
-    for (i, name) in enumerate(fieldnames(T))
-        attribute = if name == :uv
-            "uv_offset_width"
-        else
-            string(name)
-        end
-        attribLocation = GLAbstraction.get_attribute_location(program.id, attribute)
-        FT = fieldtype(T, name); ET = eltype(FT)
-        glVertexAttribPointer(
-            attribLocation,
-            GLAbstraction.cardinality(FT), GLAbstraction.julia2glenum(ET),
-            GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i))
-        )
-        glEnableVertexAttribArray(attribLocation)
-    end
-    glBindVertexArray(0)
-    obj = GLAbstraction.GLVertexArray{Int}(program, id, length(buffer), Dict("buffer" => buffer), -1)
-    finalizer(obj, GLAbstraction.free)
-    obj
-end
-
-
 
 function nextposition(sprite::Sprite, char, text)
     advance_x, advance_y = glyph_advance!(text.atlas, char, text.font, text.scale)
@@ -146,7 +116,7 @@ text.color = RGBA(1f0, 0f0, 0f0, 1f0)
 @time print(text, " Muashahahaha@");
 
 buffer = GLBuffer{eltype(text.data)}(
-    pointer(text.data), length(text.data),
+        pointer(text.data), length(text.data),
     GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW
 )
 
