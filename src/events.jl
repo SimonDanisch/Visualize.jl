@@ -11,6 +11,18 @@ function add!(events, ::Type{Mouse.Position})
 end
 
 """
+Adds the Mouse.Scroll event via GLFW
+"""
+function add!(events, ::Type{Mouse.Scroll})
+    @needs events: window = Window
+    window = events[Window]
+    GLFW.SetScrollCallback(window, (window, xoffset, yoffset) -> begin
+        events[Mouse.Scroll] = (xoffset, yoffset)
+    end)
+    return
+end
+
+"""
 Adds the Mouse.Buttons event via GLFW
 """
 function add!(events, ::Type{Mouse.Buttons})
@@ -60,7 +72,7 @@ end
 
 function add!(events::Composable, ::Type{Mouse.Drag})
     @needs events: Mouse.Buttons, Mouse.Position, Mouse.Drag
-
+    
     local indrag::Bool = false
     local tracked_mousebutton::Mouse.Button = Mouse.left
 

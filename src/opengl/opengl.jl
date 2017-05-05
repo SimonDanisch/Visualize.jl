@@ -1,15 +1,10 @@
-using GLAbstraction, GeometryTypes, FieldTraits, Visualize, Colors, ModernGL
-using FieldTraits: @composed, cfieldtype, @field
-using Visualize: ImageData, Primitive, SpatialOrder, FRect, Ranges
+import GLAbstraction
+using ModernGL
+using GLAbstraction: GLBuffer
+
+export VertexArray, uvmesh, normalmesh, UniformBuffer, compile_program
 
 @field MeshResolution
-
-"""
-Supplies the resolution of a mesh. This field will be used when converting a
-GeometryPrimitive to a mesh
-"""
-MeshResolution
-
 
 type VertexArray{T}
     id::GLuint
@@ -21,36 +16,36 @@ type VertexArray{T}
     end
 end
 
-@composed type GLImage
-    Primitive::VertexArray
-    ImageData::Texture
-    SpatialOrder
-end
-immutable UVVertex{N, T}
-    position::Point{N, T}
-    uv::TextureCoordinate{N, T}
-end
-(::Type{T}){T <: UVVertex, A, B}(x::Tuple{A, B}) = T(x[1], x[2])
-
 function uvmesh(prim::GeometryPrimitive, resolution = (2, 2))
     uv = decompose(UV{Float32}, prim, resolution)
     positions = decompose(Point2f0, prim, resolution)
     faces = decompose(GLTriangle, prim, resolution)
-    vertices = map(UVVertex{2, Float32}, zip(positions, uv))
+    vertices = map(identity, zip(positions, uv))
     view(vertices, faces)
 end
+function normalmesh(prim)
+    V = GeometryTypes.vertices(prim)
+    N = GeometryTypes.normals(prim)
+    F = decompose(GLTriangle, prim)
+    verts = map((a, b)-> (a, b), V, N)
+    Base.view(verts, F)
+end
 
-
-function VertexArray(buffer::AbstractArray, attrib_location = 1)
+function VertexArray(buffer::AbstractArray, attrib_location = 0)
     VertexArray(GLBuffer(buffer), -1, attrib_location)
 end
 function VertexArray{T, AT <: AbstractArray, IT <: AbstractArray}(
-        view::SubArray{T, 1, AT, Tuple{IT}, false}, attrib_location = 1
+        view::SubArray{T, 1, AT, Tuple{IT}, false}, attrib_location = 0
     )
     indexes = view.indexes[1]
     buffer = view.parent
-    VertexArray(GLBuffer(buffer), indexbuffer(indexes), attrib_location)
+    VertexArray(GLBuffer(buffer), GLAbstraction.indexbuffer(indexes), attrib_location)
 end
+
+is_struct{T}(::Type{T}) = !(sizeof(T) != 0 && nfields(T) == 0)
+is_glsl_primitive{T <: StaticVector}(::Type{T}) = true
+is_glsl_primitive{T <: Union{Float32, Int32}}(::Type{T}) = true
+is_glsl_primitive(T) = false
 
 function VertexArray{T}(buffer::GLBuffer{T}, indices, attrib_location)
     id = glGenVertexArrays()
@@ -61,15 +56,25 @@ function VertexArray{T}(buffer::GLBuffer{T}, indices, attrib_location)
         error("indexbuffer must be int or GLBuffer")
     end
     GLAbstraction.bind(buffer)
-    for i = 1:nfields(T)
-        FT = fieldtype(T, i); ET = eltype(FT)
+    if !is_glsl_primitive(T)
+        for i = 1:nfields(T)
+            FT = fieldtype(T, i); ET = eltype(FT)
+            glVertexAttribPointer(
+                attrib_location,
+                GLAbstraction.cardinality(FT), GLAbstraction.julia2glenum(ET),
+                GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i))
+            )
+            glEnableVertexAttribArray(attrib_location)
+            attrib_location += 1
+        end
+    else
+        FT = T; ET = eltype(FT)
         glVertexAttribPointer(
             attrib_location,
             GLAbstraction.cardinality(FT), GLAbstraction.julia2glenum(ET),
-            GL_FALSE, sizeof(T), Ptr{Void}(fieldoffset(T, i))
+            GL_FALSE, 0, C_NULL
         )
         glEnableVertexAttribArray(attrib_location)
-        attrib_location += 1
     end
     glBindVertexArray(0)
     obj = VertexArray{typeof(indices)}(id, length(buffer), indices)
@@ -78,57 +83,140 @@ function VertexArray{T}(buffer::GLBuffer{T}, indices, attrib_location)
 end
 
 
-function Base.convert{T <: GLImage}(::Type{T}, ::Type{Primitive}, image::FieldTraits.ComposableLike)
-    prim = if haskey(image, Primitive)
-        x = image[Primitive]
-        isa(x, VertexArray) && return x
-        isa(x, GeometryPrimitive) || error("Primitive needs to be of type GeometryPrimitive. Found: $x")
-        x
+function compile_program(shaders...)
+    program = GLAbstraction.createprogram()
+    glUseProgram(program)
+    #attach new ones
+    foreach(shaders) do shader
+        glAttachShader(program, shader.id)
+    end
+    #link program
+    glLinkProgram(program)
+    if !GLAbstraction.islinked(program)
+        error(
+            "program $program not linked. Error in: \n",
+            join(map(x-> string(x.name), shaders), " or "), "\n", GLAbstraction.getinfolog(program)
+        )
+    end
+    program
+end
+
+const max_batch_size = 1024
+
+"""
+Statically sized uniform buffer.
+Supports push!, but with fixed memory, so it will error after reaching
+it's preallocated length.
+"""
+type UniformBuffer{T, N}
+    buffer::GLBuffer{T}
+    offsets::NTuple{N, Int}
+    elementsize::Int
+    length::Int
+end
+const GLSLScalarTypes = Union{Float32, Int32, UInt32}
+
+function glsl_sizeof(T)
+    T <: Bool && return sizeof(Int32)
+    T <: GLSLScalarTypes && return sizeof(T)
+    ET = eltype(T)
+    if T <: Mat
+        return sizeof(ET) * 4 * size(T, 2)
+    end
+    # must be vector like #TODO assert without restricting things too much
+    N = length(T)
+    @assert N <= 4
+    N <= 2 && return 2 * sizeof(ET)
+    return 4 * sizeof(ET)
+end
+
+function std140_offsets{T}(::Type{T})
+    elementsize = 0
+    offsets = if T <: GLSLScalarTypes
+        elementsize = sizeof(T)
+        (0,)
     else
-        r = get(image, Ranges)
-        mins = Vec(minimum.(r))
-        maxs = Vec(maximum.(r))
-        FRect(mins, maxs .- mins)
+        offset = 0
+        offsets = ntuple(nfields(T)) do i
+            ft = fieldtype(T, i)
+            sz = glsl_sizeof(ft)
+            of = offset
+            offset += sz
+            of
+        end
+        elementsize = offset
+        offsets
     end
-    resolution = get(image, MeshResolution, (2, 2))
-    VertexArray(uvmesh(prim, resolution), 1)
+    offsets, elementsize
 end
 
-events = Visualize.WindowEvents()
-import Visualize: Image
-test = Image(ImageData => rand(RGB{Float32}, 512, 512))
-test = GLImage(test)
-
-
-function show(canvas::GLCanvas, glimage::GLImage)
-    shader = GLVisualizeShader(
-        "test.frag", "test.vert",
+"""
+    Pre allocates an empty buffer with `max_batch_size` size
+    which can be used to store multiple uniform blocks of type T
+"""
+function UniformBuffer{T}(::Type{T}, max_batch_size = 1024, mode = GL_STATIC_DRAW)
+    offsets, elementsize = std140_offsets(T)
+    buffer = GLBuffer{T}(
+        max_batch_size,
+        elementsize * max_batch_size,
+        GL_UNIFORM_BUFFER, mode
     )
+    UniformBuffer(buffer, offsets, elementsize, 0)
 end
 
+"""
+    Creates an Uniform buffer with the contents of `data`
+"""
+function UniformBuffer{T}(data::T, mode = GL_STATIC_DRAW)
+    buffer = UniformBuffer(T, 1, mode)
+    push!(buffer, data)
+    buffer
+end
 
-function execute_program(vertexarray, vertexshader, fragmentshader)
+function assert_blocksize(buffer::UniformBuffer, program, blockname::String)
+    block_index = glGetUniformBlockIndex(program, blockname)
+    blocksize_ref = Ref{GLint}(0)
+    glGetActiveUniformBlockiv(
+        program, block_index,
+        GL_UNIFORM_BLOCK_DATA_SIZE, blocksize_ref
+    )
+    blocksize = blocksize_ref[]
+    @assert buffer.elementsize * length(buffer.buffer) == blocksize
+end
 
-    map(enumerate(vertexarray)) do i, face
-        gl = VertexData(i)
-        vertex_stage = vertexshader.(gl, face)
-        gl.position
-
+_getfield(x::GLSLScalarTypes, i) = x
+_getfield(x, i) = getfield(x, i)
+function iterate_fields{T, N}(buffer::UniformBuffer{T, N}, x, index)
+    offset = buffer.elementsize * (index - 1)
+    x_ref = isimmutable(x) ? Ref(x) : x
+    base_ptr = pointer_from_objref(x_ref)
+    ntuple(Val{N}) do i
+        offset + buffer.offsets[i], base_ptr + fieldoffset(T, i), sizeof(fieldtype(T, i))
     end
 end
-
-using GeometryTypes
-
-framebuffer = zeros(500, 500)
-face = (Point2f0(1, 1), Point2f0(100, 100), Point2f0(100, 1))
-rasterize2(framebuffer, face)
-
-using FileIO
-save("test.png", framebuffer)
-
-inhalfspace(30, 30, face)
-test = 1
-for y = mini[2]:maxi[2], x = mini[1]:maxi[1]
-    test += 1
+function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Integer)
+    if idx > length(buffer.buffer)
+        throw(BoundsError(buffer, idx))
+    end
+    GLAbstraction.bind(buffer.buffer)
+    for (offset, ptr, size) in iterate_fields(buffer, element, idx)
+        glBufferSubData(GL_UNIFORM_BUFFER, offset, size, ptr)
+    end
+    GLAbstraction.bind(buffer.buffer, 0)
+    element
 end
-test
+function Base.push!{T, N}(buffer::UniformBuffer{T, N}, element::T)
+    buffer.length += 1
+    buffer[buffer.length] = element
+    buffer
+end
+
+immutable Command
+    vertexCount::GLuint
+    instanceCount::GLuint
+    firstIndex::GLuint
+    baseVertex::GLuint
+    baseInstance::GLuint
+end
+
+export Command

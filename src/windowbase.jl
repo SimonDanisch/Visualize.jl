@@ -9,10 +9,10 @@ module Mouse
     @enum DragEnum down up pressed notpressed
 
     @field Drag <: WindowEvent = notpressed
-    @field Position <: WindowEvent = (0, 0)
+    @field Position <: WindowEvent = (0.0, 0.0)
     @field Inside <: WindowEvent = false
     @field Buttons <: WindowEvent = Set(Button[])
-    @field Scroll <: WindowEvent = (0, 0)
+    @field Scroll <: WindowEvent = (0.0, 0.0)
 end
 
 include("keyboard.jl")
@@ -56,10 +56,11 @@ end
     # Mouse2Object
 end
 
-@composed type Camera <: ReactiveComposable
+@reactivecomposed type Camera
     Area
-    View
     Projection
+    View
+    ProjectionView
 end
 @composed type Canvas <: ReactiveComposable
     <: Shared

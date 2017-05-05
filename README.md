@@ -27,6 +27,7 @@ this was resulting in a conversion and documentation nightmare.
 This problem explodes, when introducing different backends, which have essentially the same user facing behavior.
 
 Let me illustrate how FieldTraits solves this with a very simple example:
+
 ```Julia
 using FieldTraits
 # define a field
@@ -116,7 +117,7 @@ end
 
 function FieldTraits.default{(::Type{Image}, ::Field{Ranges}, incomplete)
     # asserts that incomplete at least contains ImageData, assigns it to image or throws an appropriate error
-    @needs incomplete: image = ImageData
+    @needs incomplete: (image = ImageData,)
     # not the best example, but lets say we want to figure out how much space the image should take when we display it
     # I started calling that ranges, since it assigns a range to every dimension. This is pretty much a boundingbox
     (1:size(image, 1), 1:size(image, 2))
