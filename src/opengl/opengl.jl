@@ -1,5 +1,6 @@
 import GLAbstraction
-using ModernGL
+using ModernGL, FieldTraits
+using FieldTraits: @field
 using GLAbstraction: GLBuffer
 
 export VertexArray, uvmesh, normalmesh, UniformBuffer, compile_program
@@ -116,9 +117,13 @@ type UniformBuffer{T, N}
 end
 const GLSLScalarTypes = Union{Float32, Int32, UInt32}
 
+
+import Transpiler
 function glsl_sizeof(T)
     T <: Bool && return sizeof(Int32)
     T <: GLSLScalarTypes && return sizeof(T)
+    # TODO Propper translation and sizes!
+    T <: Function && return sizeof(Vec4f0) # sizeof(EmptyStruct) padded to Vec4f0
     ET = eltype(T)
     if T <: Mat
         return sizeof(ET) * 4 * size(T, 2)

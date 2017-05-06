@@ -15,7 +15,7 @@ function rasterize!{N, GF}(
         fragment_shader,
         geometry_shader::GF = nothing,
         geometry_primitives = 4,
-        blend_func = standard_transparency
+        blend_func = standard_transparency;
     )
     resolution = Vec2f0(size(first(framebuffer))) - 1f0
     if geometry_shader != nothing
@@ -23,9 +23,9 @@ function rasterize!{N, GF}(
         emit_t{T}(position, ::T) = (typ = T)
         face1 = first(vertex_array)
         vertex_stage = map(reverse(face1)) do f
-            vertex_shader(f, uniforms)
+            vertex_shader(f, uniforms...)
         end
-        geometry_shader(vertex_stage, uniforms, emit_t) # figure out typ
+        geometry_shader(emit_t, vertex_stage, uniforms...) # figure out typ
         geometry_stage = Vector{Tuple{Point4f0, typ}}(geometry_primitives)
         geometry_view = view(geometry_stage, Face[(1, 2, 3), (3, 2, 4)])
         geom_idx = 1
@@ -38,11 +38,11 @@ function rasterize!{N, GF}(
 
     map(vertex_array) do face
         vertex_stage = map(reverse(face)) do f
-            vertex_shader(f, uniforms)
+            vertex_shader(f, uniforms...)
         end
         geom_stage = if geometry_shader != nothing
             geom_idx = 1
-            geometry_shader(vertex_stage, uniforms, emit)
+            geometry_shader(emit, vertex_stage, uniforms...)
             geometry_view
         else
             (vertex_stage,)
@@ -80,12 +80,13 @@ function rasterize!{N, GF}(
                             bary[2] * vertex_out[2][vi] +
                             bary[3] * vertex_out[3][vi]
                         end
-                        fragment_out = fragment_shader(fragment_in, uniforms)
+                        fragment_out = fragment_shader(fragment_in, uniforms...)
                         for i = eachindex(fragment_out)
                             src_color = framebuffer[i][yi, xi]
+                            dest_color = fragment_out[i]
                             framebuffer[i][yi, xi] = blend_func(
                                 src_color,
-                                fragment_out[i]
+                                RGBA{Float32}(dest_color[1], dest_color[2], dest_color[3], dest_color[4])
                             )
                         end
                     end

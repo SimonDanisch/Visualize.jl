@@ -1,20 +1,18 @@
-using GeometryTypes
-using ModernGL
+using GeometryTypes, StaticArrays, ModernGL
 import GLAbstraction, GLWindow, ColorVectorSpace
-import Transpiler: gli
-using StaticArrays
-include("rasterizer.jl")
-import Transpiler: mix, smoothstep
+using Visualize
+using Visualize: orthographicprojection
+import Transpiler: mix, smoothstep, gli
 
 function aastep{T}(threshold1::T, value)
     return smoothstep(threshold1 - T(0.001), threshold1 + T(0.001), value)
 end
 
 type Uniforms{F}
+    projection::Mat4f0
     strokecolor::Vec4f0
     glowcolor::Vec4f0
     distance_func::F
-    projection::Mat4f0
 end
 
 immutable Vertex{N, T}
@@ -60,11 +58,11 @@ function emit_vertex(emit!, vertex, uv, offsetted_uv, arg, pos, uniforms)
     return
 end
 
-function geometry_main(emit!, geom_in, uniforms)
+function geometry_main(emit!, vertex_out, uniforms)
     # get arguments from first face
     # (there is only one in there anywas, since primitive type is point)
     # (position, vertex_out)
-    arg = geom_in[1]
+    arg = vertex_out[1]
     # emit quad as triangle strip
     # v3. ____ . v4
     #    |\   |
@@ -84,35 +82,79 @@ function geometry_main(emit!, geom_in, uniforms)
     emit_vertex(emit!, quad[Vec(3, 4)], uvnormed[Vec(3, 2)], uv[Vec(3, 2)], arg, pos, uniforms)
     return
 end
-function fragment_main(fragment_in, uniforms)
-    uv = fragment_in[1]; uv_offset = fragment_in[2]; color = fragment_in[3];
+function fragment_main(geom_out, uniforms)
+    uv = geom_out[1]; uv_offset = geom_out[2]; color = geom_out[3];
     signed_distance = uniforms.distance_func(uv)
     inside = aastep(0f0, signed_distance)
-    bg = Vec4f0(0f0, 0f0, 0f0, 0f0)
+    bg = Vec4f0(1f0, 1f0, 1f0, 0f0)
     (mix(bg, color, inside),)
 end
 circle{T}(uv::Vec{2, T}) = T(0.5) - norm(uv)
 
-proj = orthographicprojection(SimpleRectangle(0, 0, 500, 500), -10_000f0, 10_000f0)
+resolution = (500, 500)
+w = GLWindow.create_glcontext(resolution = resolution)
 
+proj = orthographicprojection(SimpleRectangle(0, 0, resolution...), -10_000f0, 10_000f0)
 uniforms = Uniforms(
+    proj,
     Vec4f0(1, 0, 0, 1),
     Vec4f0(1, 0, 1, 1),
-    circle,
-    proj
+    circle
 )
+
 N = 20
-vertices = [(Vertex(
-    Vec2f0(sin(2pi * (i / N)) * 200 , cos(2pi * (i / N)) * 200) + 200f0,
+vertices = [Vertex(
+    Vec2f0((sin(2pi * (i / N)) , cos(2pi * (i / N))) .* 200f0) .+ 200f0,
     Vec4f0(0, 0, 0, 0), Vec4f0(1, i/N, 0, 1), Vec2f0(40, 40)
-),) for i = 1:N]
+) for i = 1:N]
 
-framebuffer = fill(RGBA{Float32}(1, 1, 1, 0), 500, 500)
-depthbuffer = ones(Float32, size(framebuffer))
-rasterize!(
-    depthbuffer, (framebuffer,),
-    vertices, uniforms,
-    vertex_main, fragment_main, geometry_main, 4
-)
 
-save("test.png", framebuffer)
+
+emit_placeholder(position, fragout) = nothing;
+
+
+argtypes = (Vertex{2, Float32}, typeof(uniforms))
+vsource, vertexout = Transpiler.emit_vertex_shader(vertex_main, argtypes)
+
+argtypes = (typeof(emit_placeholder), vertexout, typeof(uniforms))
+gsource, geomout = Transpiler.emit_geometry_shader(geometry_main, argtypes)
+
+argtypes = (geomout, typeof(uniforms))
+fsource, fragout = Transpiler.emit_fragment_shader(fragment_main, argtypes)
+
+vshader = GLAbstraction.compile_shader(vsource, GL_VERTEX_SHADER, :particle_vert)
+gshader = GLAbstraction.compile_shader(gsource, GL_GEOMETRY_SHADER, :particle_geom)
+fshader = GLAbstraction.compile_shader(fsource, GL_FRAGMENT_SHADER, :particle_frag)
+
+write(STDOUT, vsource)
+println()
+write(STDOUT, gsource)
+println()
+write(STDOUT, fsource)
+
+program = compile_program(vshader, gshader, fshader)
+
+vbo = Visualize.VertexArray(vertices);
+uniform_buff = Visualize.UniformBuffer(uniforms);
+
+uniform_idx = glGetUniformBlockIndex(program, "_gensymed_uniforms")
+glUniformBlockBinding(program, uniform_idx, 0)
+glBindBufferBase(GL_UNIFORM_BUFFER, 0, uniform_buff.buffer.id)
+
+glUseProgram(program)
+glDisable(GL_DEPTH_TEST)
+glClearColor(1,1,1,0)
+glBindVertexArray(vbo.id)
+GLAbstraction.enabletransparency()
+
+while isopen(w)
+    GLWindow.poll_glfw()
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    glDrawArrays(
+        GL_POINTS,
+        0,
+        length(vertices)
+    )
+    GLWindow.swapbuffers(w)
+end
+GLFW.DestroyWindow(w)
