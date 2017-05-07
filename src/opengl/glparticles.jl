@@ -1,11 +1,10 @@
-using GeometryTypes, StaticArrays, ModernGL
+using GeometryTypes, StaticArrays, ModernGL, Visualize
 import GLAbstraction, GLWindow, ColorVectorSpace
-using Visualize
-using Visualize: orthographicprojection
 import Transpiler: mix, smoothstep, gli
+using Visualize: orthographicprojection
 
 function aastep{T}(threshold1::T, value)
-    return smoothstep(threshold1 - T(0.001), threshold1 + T(0.001), value)
+    smoothstep(threshold1 - T(0.05), threshold1 + T(0.05), value)
 end
 
 type Uniforms{F}
@@ -104,57 +103,29 @@ uniforms = Uniforms(
 
 N = 20
 vertices = [Vertex(
-    Vec2f0((sin(2pi * (i / N)) , cos(2pi * (i / N))) .* 200f0) .+ 200f0,
+    Vec2f0((sin(2pi * (i / N)) , cos(2pi * (i / N))) .* 200f0) .+ 250f0,
     Vec4f0(0, 0, 0, 0), Vec4f0(1, i/N, 0, 1), Vec2f0(40, 40)
 ) for i = 1:N]
 
 
+vbo = VertexArray(vertices)
 
-emit_placeholder(position, fragout) = nothing;
+uniform_buff = UniformBuffer(uniforms);
 
+draw_particles = GLRasterizer(
+    vbo, (uniform_buff,),
+    vertex_main, fragment_main;
+    geometry_main = geometry_main
+)
 
-argtypes = (Vertex{2, Float32}, typeof(uniforms))
-vsource, vertexout = Transpiler.emit_vertex_shader(vertex_main, argtypes)
-
-argtypes = (typeof(emit_placeholder), vertexout, typeof(uniforms))
-gsource, geomout = Transpiler.emit_geometry_shader(geometry_main, argtypes)
-
-argtypes = (geomout, typeof(uniforms))
-fsource, fragout = Transpiler.emit_fragment_shader(fragment_main, argtypes)
-
-vshader = GLAbstraction.compile_shader(vsource, GL_VERTEX_SHADER, :particle_vert)
-gshader = GLAbstraction.compile_shader(gsource, GL_GEOMETRY_SHADER, :particle_geom)
-fshader = GLAbstraction.compile_shader(fsource, GL_FRAGMENT_SHADER, :particle_frag)
-
-write(STDOUT, vsource)
-println()
-write(STDOUT, gsource)
-println()
-write(STDOUT, fsource)
-
-program = compile_program(vshader, gshader, fshader)
-
-vbo = Visualize.VertexArray(vertices);
-uniform_buff = Visualize.UniformBuffer(uniforms);
-
-uniform_idx = glGetUniformBlockIndex(program, "_gensymed_uniforms")
-glUniformBlockBinding(program, uniform_idx, 0)
-glBindBufferBase(GL_UNIFORM_BUFFER, 0, uniform_buff.buffer.id)
-
-glUseProgram(program)
 glDisable(GL_DEPTH_TEST)
 glClearColor(1,1,1,0)
-glBindVertexArray(vbo.id)
 GLAbstraction.enabletransparency()
 
 while isopen(w)
     GLWindow.poll_glfw()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    glDrawArrays(
-        GL_POINTS,
-        0,
-        length(vertices)
-    )
+    draw_particles(vbo, (uniform_buff,))
     GLWindow.swapbuffers(w)
 end
 GLFW.DestroyWindow(w)

@@ -2,20 +2,24 @@ import GLAbstraction
 using ModernGL, FieldTraits
 using FieldTraits: @field
 using GLAbstraction: GLBuffer
+include("texture_atlas.jl")
 
 export VertexArray, uvmesh, normalmesh, UniformBuffer, compile_program
 
 @field MeshResolution
 
-type VertexArray{T}
+type VertexArray{Vertex, IT, N}
     id::GLuint
     length::Int
-    indices::T
+    buffer::NTuple{N, GLBuffer}
+    indices::IT
     context::GLAbstraction.GLContext
-    function VertexArray{T}(id, bufferlength, indices::T)
-        new(id, bufferlength, indices, GLAbstraction.current_context())
+    function VertexArray{T}(id, bufferlength, buffers, indices::T)
+        new(id, bufferlength, buffers, indices, GLAbstraction.current_context())
     end
 end
+Base.eltype{T, IT, N}(::VertexArray{T, IT, N}) = T
+Base.length(x::VertexArray) = x.length
 
 function uvmesh(prim::GeometryPrimitive, resolution = (2, 2))
     uv = decompose(UV{Float32}, prim, resolution)
@@ -78,7 +82,7 @@ function VertexArray{T}(buffer::GLBuffer{T}, indices, attrib_location)
         glEnableVertexAttribArray(attrib_location)
     end
     glBindVertexArray(0)
-    obj = VertexArray{typeof(indices)}(id, length(buffer), indices)
+    obj = VertexArray{T, typeof(indices), 1}(id, length(buffer), (buffer,), indices)
     #finalizer(obj, GLAbstraction.free)
     obj
 end
@@ -116,7 +120,7 @@ type UniformBuffer{T, N}
     length::Int
 end
 const GLSLScalarTypes = Union{Float32, Int32, UInt32}
-
+Base.eltype{T, N}(::UniformBuffer{T, N}) = T
 
 import Transpiler
 function glsl_sizeof(T)
@@ -225,3 +229,5 @@ immutable Command
 end
 
 export Command
+
+include("rasterpipeline.jl")

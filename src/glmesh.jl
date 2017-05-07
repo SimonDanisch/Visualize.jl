@@ -36,7 +36,8 @@ function read_ifs(filename)
                 read(io, UInt32) + UInt32(1)
             )
         end
-        view(verts, faces)
+        nv = normals(verts, faces)
+        view(collect(zip(verts, nv)), faces)
     end
 end
 
