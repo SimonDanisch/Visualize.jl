@@ -27,7 +27,7 @@ function (p::GLRasterizer{Vertex, N, Args}){Vertex, N, Args}(vertexarray::Vertex
             GLAbstraction.gluniform(uniform_idx, blockid, uniform)
         end
     end
-    glDrawArrays(GL_TRIANGLES, 0, length(vertexarray))
+    draw_vbo(vertexarray)
     glBindVertexArray(0)
 end
 

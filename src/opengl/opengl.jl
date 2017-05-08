@@ -7,17 +7,33 @@ include("texture_atlas.jl")
 export VertexArray, uvmesh, normalmesh, UniformBuffer, compile_program
 
 @field MeshResolution
-
-type VertexArray{Vertex, IT, N}
+type VertexArray{Vertex, Face, IT}
     id::GLuint
     length::Int
-    buffer::NTuple{N, GLBuffer}
+    buffer::Vector
     indices::IT
     context::GLAbstraction.GLContext
-    function VertexArray{T}(id, bufferlength, buffers, indices::T)
-        new(id, bufferlength, buffers, indices, GLAbstraction.current_context())
+    function (::Type{VertexArray{Vertex, Face}}){Vertex, Face, IT}(id, bufferlength, buffers, indices::IT)
+        new{Vertex, Face, IT}(id, bufferlength, buffers, indices, GLAbstraction.current_context())
     end
 end
+
+gl_face_enum{V, IT}(::VertexArray{V, GLTriangle, IT}) = GL_TRIANGLES
+gl_face_enum{V, IT, T <: Integer}(::VertexArray{V, T, IT}) = GL_POINTS
+gl_face_enum{V, IT}(::VertexArray{V, Face{1, OffsetInteger{1, GLint}}, IT}) = GL_POINTS
+
+function draw_vbo{V, T, IT <: GLBuffer}(vbo::VertexArray{V, T, IT})
+    glDrawElements(
+        gl_face_enum(vbo),
+        length(vbo.indices) * GLAbstraction.cardinality(vbo.indices),
+        GLAbstraction.julia2glenum(eltype(IT)), C_NULL
+    )
+end
+function draw_vbo{V, T}(vbo::VertexArray{V, T, DataType})
+    glDrawArrays(gl_face_enum(vbo), 0, length(vbo))
+end
+
+
 Base.eltype{T, IT, N}(::VertexArray{T, IT, N}) = T
 Base.length(x::VertexArray) = x.length
 
@@ -36,8 +52,8 @@ function normalmesh(prim)
     Base.view(verts, F)
 end
 
-function VertexArray(buffer::AbstractArray, attrib_location = 0)
-    VertexArray(GLBuffer(buffer), -1, attrib_location)
+function VertexArray(buffer::AbstractArray, attrib_location = 0; face_type = GLTriangle)
+    VertexArray(GLBuffer(buffer), face_type, attrib_location)
 end
 function VertexArray{T, AT <: AbstractArray, IT <: AbstractArray}(
         view::SubArray{T, 1, AT, Tuple{IT}, false}, attrib_location = 0
@@ -52,13 +68,20 @@ is_glsl_primitive{T <: StaticVector}(::Type{T}) = true
 is_glsl_primitive{T <: Union{Float32, Int32}}(::Type{T}) = true
 is_glsl_primitive(T) = false
 
+_typeof{T}(::Type{T}) = Type{T}
+_typeof{T}(::T) = T
 function VertexArray{T}(buffer::GLBuffer{T}, indices, attrib_location)
     id = glGenVertexArrays()
     glBindVertexArray(id)
-    if isa(indices, GLBuffer)
+    face_type = if isa(indices, GLBuffer)
         GLAbstraction.bind(indices)
-    elseif !isa(indices, Integer)
-        error("indexbuffer must be int or GLBuffer")
+        eltype(indices)
+    elseif isa(indices, DataType) && indices <: Face
+        indices
+    elseif isa(indices, Integer)
+        Face{1, OffsetInteger{1, GLint}}
+    else
+        error("indices must be Int, GLBuffer or Face type")
     end
     GLAbstraction.bind(buffer)
     if !is_glsl_primitive(T)
@@ -82,7 +105,7 @@ function VertexArray{T}(buffer::GLBuffer{T}, indices, attrib_location)
         glEnableVertexAttribArray(attrib_location)
     end
     glBindVertexArray(0)
-    obj = VertexArray{T, typeof(indices), 1}(id, length(buffer), (buffer,), indices)
+    obj = VertexArray{T, face_type}(id, length(buffer), [buffer], indices)
     #finalizer(obj, GLAbstraction.free)
     obj
 end

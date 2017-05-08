@@ -51,7 +51,7 @@ function printat(text::Text, idx::Int, str::String)
 end
 
 function Base.print(text::Text, char::Union{Char, String})
-    map!(text.cursors) do idx
+    map!(text.cursors, text.cursors) do idx
         idx = printat(text, idx, char)
         return idx
     end

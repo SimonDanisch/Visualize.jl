@@ -4,7 +4,7 @@ import Transpiler: mix, smoothstep, gli
 using Visualize: orthographicprojection, VertexArray, UniformBuffer, get_texture_atlas
 
 function aastep{T}(threshold1::T, value)
-    smoothstep(threshold1 - T(0.1), threshold1 + T(0.1), value)
+    smoothstep(threshold1 - T(2), threshold1 + T(2), value)
 end
 
 type Uniforms
@@ -137,7 +137,7 @@ text.color = Vec4f0(1f0, 0f0, 0f0, 1f0)
 print(text, " Muashahahaha@")
 
 uniform_buff = UniformBuffer(uniforms);
-vbo = VertexArray(text.data);
+vbo = VertexArray(text.data, face_type = Face{1, OffsetInteger{1, GLint}});
 
 draw_particles = GLRasterizer(
     vbo, (uniform_buff, atlas.images),
@@ -155,3 +155,5 @@ while isopen(w)
     GLWindow.swapbuffers(w)
 end
 GLFW.DestroyWindow(w)
+
+Visualize.gl_face_enum(vbo) == GL_TRIANGLES
