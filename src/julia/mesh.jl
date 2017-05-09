@@ -2,21 +2,6 @@ module MeshRender
 
 using GeometryTypes
 
-immutable Light{T}
-    position::Vec{3, T}
-    ambient::Vec{3, T}
-    diffuse::Vec{3, T}
-    diffuse_power::T
-    specular::Vec{3, T}
-    specular_power::T
-end
-
-immutable Shading{T}
-    ambient::Vec{3, T}
-    specular::Vec{3, T}
-    shininess::T
-end
-
 immutable Vert2Frag
     position::Vec3f0
     normal::Vec3f0
@@ -28,7 +13,7 @@ immutable Vertex
     normal::Vec3f0
 end
 
-function vertexshader(vertex, light, shading, args)
+function vertexshader(vertex::Vertex, light, shading, args)
     #args = (solid_color, proj, view)
     proj = args[2]
     viewmodel = args[3]
@@ -43,16 +28,7 @@ function vertexshader(vertex, light, shading, args)
     pos_screen, v2frag
 end
 
-function blinnphong{NV, T}(V::Vec{NV, T}, N, L, color, shading, light)
-    lambertian = max(dot(L, N), 0f0)
-    half_direction = normalize(L .+ V)
-    specular_angle = max(dot(half_direction, N), 0.0)
-    specular = specular_angle ^ 16f0
-    surf_color = (lambertian * color) .+ (specular * shading.specular)
-    return light.ambient .+ surf_color
-end
-
-function fragmentshader(vertex_out, light, shading, args)
+function fragmentshader(vertex_out::Vert2Frag, light, shading, args)
     # (solid_color, proj, view)
     solid_color = args[1]
     V = vertex_out.position
