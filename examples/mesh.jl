@@ -32,6 +32,5 @@ draw = JLRasterizer(
 )
 
 @time draw(canvas, catmesh, program_args)
-x = canvas[Framebuffer][1]
 
-save("test.png", ())
+save("test.png", clamp01.(canvas[Framebuffer][1]))

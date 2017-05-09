@@ -1,5 +1,3 @@
-using Visualize: glyph_advance!, glyph_bearing!, glyph_uv_width!, glyph_scale!
-
 isnewline(x) = x == '\n'
 
 type Text
@@ -16,6 +14,24 @@ type Text
     lineheight
 end
 
+function Sprite{N, T}(char, position::Point{N, T}, text)
+    Sprite(
+        char, position, text.scale, text.offset,
+        text.color, text.font, text.atlas
+    )
+end
+function Sprite{N, T}(
+        char, position::Point{N, T}, scale, offset, color,
+        font = defaultfont(),  atlas = get_texture_atlas()
+    )
+    Sprite{N, T}(
+        position,
+        glyph_bearing!(atlas, char, font, scale) + offset,
+        glyph_scale!(atlas, char, font, scale),
+        glyph_uv_width!(atlas, char, font),
+        color
+    )
+end
 
 function nextposition(sprite::Sprite, char, text)
     advance_x, advance_y = glyph_advance!(text.atlas, char, text.font, text.scale)
