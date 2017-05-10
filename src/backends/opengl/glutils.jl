@@ -1,12 +1,3 @@
-import GLAbstraction
-using ModernGL, FieldTraits
-using FieldTraits: @field
-using GLAbstraction: GLBuffer
-include("texture_atlas.jl")
-
-export VertexArray, uvmesh, normalmesh, UniformBuffer, compile_program
-
-@field MeshResolution
 type VertexArray{Vertex, Face, IT}
     id::GLuint
     length::Int
@@ -145,7 +136,7 @@ end
 const GLSLScalarTypes = Union{Float32, Int32, UInt32}
 Base.eltype{T, N}(::UniformBuffer{T, N}) = T
 
-import Transpiler
+
 function glsl_sizeof(T)
     T <: Bool && return sizeof(Int32)
     T <: GLSLScalarTypes && return sizeof(T)
@@ -252,5 +243,3 @@ immutable Command
 end
 
 export Command
-
-include("rasterpipeline.jl")

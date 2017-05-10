@@ -1,10 +1,3 @@
-using GeometryTypes
-using StaticArrays
-using ModernGL
-import GLAbstraction, GLWindow, ColorVectorSpace
-import Transpiler: gli
-import Transpiler: mix, smoothstep
-
 function aastep{T}(threshold1::T, value)
     smoothstep(threshold1 - T(0.001), threshold1 + T(0.001), value)
 end
@@ -24,8 +17,6 @@ type TextUniforms
     glowcolor::Vec4f0
 end
 
-abstract Particle
-
 immutable Sprite{N, T} <: Particle
     position::Point{N, T}
     offset::Vec{2, T}
@@ -33,20 +24,10 @@ immutable Sprite{N, T} <: Particle
     uv::Vec{4, T}
     color::Vec{4, T}
 end
-const GLSprite2 = Sprite{2, Float32}
-const GLSprite3 = Sprite{3, Float32}
 
-immutable Vertex{N, T} <: Particle
-    position::Vec{N, T}
-    color::Vec4f0
-    scale::Vec2f0
-end
+const Sprite2 = Sprite{2, Float32}
+const Sprite3 = Sprite{3, Float32}
 
-immutable Vertex2Geom
-    uvrect::Vec4f0
-    color::Vec4f0
-    rect::Vec4f0
-end
 
 getuvrect(x::Vertex) = Vec4f0(0)
 getuvrect(x::Sprite) = x.uvrect

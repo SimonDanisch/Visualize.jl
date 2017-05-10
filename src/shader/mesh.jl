@@ -1,19 +1,4 @@
-module MeshRender
-
-using GeometryTypes
-
-immutable Vert2Frag
-    position::Vec3f0
-    normal::Vec3f0
-    lightdir::Vec3f0
-end
-
-immutable Vertex
-    position::Vec3f0
-    normal::Vec3f0
-end
-
-function vertexshader(vertex::Vertex, light, shading, args)
+function vert_mesh(vertex::VertexN, light, shading, args)
     #args = (solid_color, proj, view)
     proj = args[2]
     viewmodel = args[3]
@@ -28,7 +13,7 @@ function vertexshader(vertex::Vertex, light, shading, args)
     pos_screen, v2frag
 end
 
-function fragmentshader(vertex_out::Vert2Frag, light, shading, args)
+function frag_mesh(vertex_out::Vert2Frag, light, shading, args)
     # (solid_color, proj, view)
     solid_color = args[1]
     V = vertex_out.position
@@ -36,6 +21,4 @@ function fragmentshader(vertex_out::Vert2Frag, light, shading, args)
     N = normalize(vertex_out.normal)
     c = blinnphong(V, N, L, solid_color, shading, light)
     (Vec4f0(c[1], c[2], c[3], 1f0),)
-end
-
 end

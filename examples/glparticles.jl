@@ -107,7 +107,6 @@ vertices = [Vertex(
     Vec4f0(0, 0, 0, 0), Vec4f0(1, i/N, 0, 1), Vec2f0(40, 40)
 ) for i = 1:N]
 
-
 vbo = VertexArray(vertices)
 
 uniform_buff = UniformBuffer(uniforms);

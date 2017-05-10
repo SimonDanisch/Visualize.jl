@@ -1,3 +1,5 @@
+include("textureatlas.jl")
+
 isnewline(x) = x == '\n'
 
 type Text
@@ -56,6 +58,7 @@ function printat(text::Text, idx::Integer, char::Char)
     insert!(text.text, idx, char)
     idx
 end
+
 function printat(text::Text, idx::Int, str::String)
     sprite = text.data[idx]
     position = sprite.position

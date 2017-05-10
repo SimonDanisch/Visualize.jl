@@ -1,7 +1,3 @@
-using FieldTraits, GeometryTypes, Visualize, FileIO
-import FieldTraits: default
-using GLAbstraction: to_worldspace
-import Quaternions
 const Q = Quaternions
 
 @enum ProjectionEnum Perspective Orthographic
@@ -16,7 +12,16 @@ const Q = Quaternions
 @field Far = 100f0
 @field ProjectionType = Perspective
 
-@composed type PerspectiveCamera <: ReactiveComposable
+abstract type AbstractCamera <: ReactiveComposable end
+
+@reactivecomposed type Camera <: AbstractCamera
+    Area
+    Projection
+    View
+    ProjectionView
+end
+
+@composed type PerspectiveCamera <: AbstractCamera
     <: Camera
     ProjectionType
     Translation
@@ -33,7 +38,7 @@ end
 
 FieldTraits.default(::Type{PerspectiveCamera}, ::Type{Rotation}) = Vec3f0(0, 0, 0)
 
-function Visualize.add!(cam, ::Type{Translation}, canvas, key, button)
+function add!(cam, ::Type{Translation}, canvas, key, button)
     local last_mousepos::Vec2f0 = Vec2f0(0, 0)
     on(canvas, Mouse.Drag) do drag
         if ispressed(canvas, key) && ispressed(canvas, button)
@@ -58,7 +63,7 @@ function Visualize.add!(cam, ::Type{Translation}, canvas, key, button)
         return
     end
 end
-function Visualize.add!(cam, ::Type{Rotation}, canvas, key, button)
+function add!(cam, ::Type{Rotation}, canvas, key, button)
     local last_mousepos::Vec2f0 = Vec2f0(0, 0)
     on(canvas, Mouse.Drag) do drag
         if ispressed(canvas, key) && ispressed(canvas, button)
@@ -74,7 +79,7 @@ function Visualize.add!(cam, ::Type{Rotation}, canvas, key, button)
         return
     end
 end
-function Visualize.add!(cam, ::Type{EyePosition}, ::Type{LookAt})
+function add!(cam, ::Type{EyePosition}, ::Type{LookAt})
     on(cam, Translation) do translation
         translation == Vec3f0(0) && return
 
@@ -117,6 +122,20 @@ function Visualize.add!(cam, ::Type{EyePosition}, ::Type{LookAt})
         return
     end
 end
+function add!(cam, ::Type{Projection}, ::Type{View})
+    on(cam, Area, Fov, Near, ProjectionType, LookAt, EyePosition, UpVector) do area, fov, near, projectiontype, lookatv, eyeposition, upvector
+        zoom = norm(lookatv - eyeposition)
+        # TODO this means you can't set FarClip... SAD!
+        far = max(zoom * 5f0, 30f0)
+        proj = projection_switch(area, fov, near, far, projectiontype, zoom)
+        view = lookat(eyeposition, lookatv, upvector)
+        cam[Projection] = proj
+        cam[View] = view
+        cam[ProjectionView] = proj * view
+    end
+end
+
+
 function projection_switch{T <: Real}(
         wh::SimpleRectangle,
         fov::T, near::T, far::T,
@@ -150,31 +169,82 @@ function rotate_cam{T}(
     rotation
 end
 
-function Visualize.add!(cam, ::Type{Projection}, ::Type{View})
-    on(cam, Area, Fov, Near, ProjectionType, LookAt, EyePosition, UpVector) do area, fov, near, projectiontype, lookatv, eyeposition, upvector
-        zoom = norm(lookatv - eyeposition)
-        # TODO this means you can't set FarClip... SAD!
-        far = max(zoom * 5f0, 30f0)
-        proj = projection_switch(area, fov, near, far, projectiontype, zoom)
-        view = lookat(eyeposition, lookatv, upvector)
-        cam[Projection] = proj
-        cam[View] = view
-        cam[ProjectionView] = proj * view
+wscale(screenrect, viewrect) = widths(viewrect) ./ widths(screenrect)
+
+function update_cam!(cam, area)
+    x, y = minimum(area)
+    w, h = widths(area) ./ 2f0
+    cam.area = IRect(area.x, area.y, area.w, area.h)
+    cam.projection = orthographicprojection(-w, w, -h, h, -10_000f0, 10_000f0)
+    cam.view = translationmatrix(Vec3f0(-x - w, -y - h, 0))
+    return
+end
+
+function add!(cam::Camera, window, ::Type{Pan})
+    @needs window: Mouse.Drag
+    on(window, Mouse.Drag, RefValue(Vec(0.0, 0.0))) do dragging, startpos
+        mp = Vec(window[Mouse.Position])
+        if dragging == Mouse.down
+            startpos[] = mp
+        elseif dragging == Mouse.pressed && ispressed(window, Mouse.middle)
+            diff = startpos[] .- mp
+            a = cam[Area]
+            st = diff .* wscale(window[Area], a)
+            update_cam!(cam, FRect(minimum(a) .+ st, widths(a)))
+        end
+        nothing
     end
 end
 
+function selection_rect(
+        canvas,
+        key = Mouse.left,
+        button = Set([Keyboard.left_control, Keyboard.space])
+    )
+    @needs canvas: (Mouse.Drag, Mouse.Position)
+    rect = IRect(0, 0, 0, 0)
+    lw = 2f0
+    rect_vis = visualize(
+        Primitive => rect,
+        Pattern => [0.0, lw, 2lw, 3lw, 4lw],
+        Thickness => lw,
+        Color => RGBA(0.7f0, 0.7f0, 0.7f0, 0.9f0)
+    )
+    dragged_rect = on(canvas, Mouse.Drag) do drag
+        if ispressed(canvas, key) && ispressed(canvas, button)
+            if drag == Mouse.down
+                rect_vis[Visible] = true # start displaying
+                rect_vis[Primitive] = IRect(canvas[Mouse.Position], 0, 0)
+            elseif drag == Mouse.pressed
+                min = minimum(rect_vis[Primitive])
+                wh = canvas[Mouse.Position] - min
+                rect_vis[Primitive] = IRect(min, wh)
+            end
+        else
+            # always hide if not the right key is pressed
+            rect_vis[Visible] = false # hide
+        end
+        return
+    end
+    push!(canvas, rect_vis)
+    rect_vis
+end
 
 
-
-# function PerspectiveCamera(events)
-#     cam = PerspectiveCamera()
-#     add!(cam, Translation, events,
-#         Mouse.right, Set([Keyboard.left_control])
-#     )
-#     add!(cam, Rotation, events,
-#         Mouse.left, Set([Keyboard.left_control])
-#     )
-#     add!(cam, Projection, View)
-#     add!(cam, EyePosition, LookAt)
-#     cam
-# end
+function reset!(cam, boundingbox, preserveratio = true)
+    w1 = widths(boundingbox)
+    if preserveratio
+        w2 = widths(cam[Screen][Area])
+        ratio = w2 ./ w1
+        w1 = if ratio[1] > ratio[2]
+            s = w2[1] ./ w2[2]
+            Vec2f0(s * w1[2], w1[2])
+        else
+            s = w2[2] ./ w2[1]
+            Vec2f0(w1[1], s * w1[1])
+        end
+    end
+    p = minimum(w1) .* 0.001 # 2mm padding
+    update_cam!(cam, FRect(-p, -p, w1 .+ 2p))
+    return
+end

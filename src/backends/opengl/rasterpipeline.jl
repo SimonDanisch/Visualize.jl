@@ -1,13 +1,8 @@
-using GLAbstraction: Shader, compile_shader, Texture
-using Transpiler: emit_vertex_shader, emit_geometry_shader, emit_fragment_shader, glsl_gensym
-import Transpiler: gli
-
 emit_placeholder(position, fragout) = nothing
+
 glsl_type{T <: AbstractFloat}(::Type{T}) = Float32
 glsl_type{T}(::UniformBuffer{T}) = T
-function glsl_type{T, N}(::Texture{T, N})
-    gli.GLTexture{glsl_type(T), N}
-end
+glsl_type{T, N}(::Texture{T, N}) = gli.GLTexture{glsl_type(T), N}
 
 immutable GLRasterizer{Vertex, N, Args}
     program::GLuint

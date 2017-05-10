@@ -2,17 +2,6 @@ using Packing, FreeTypeAbstraction, SignedDistanceFields, FreeType
 using GLAbstraction: Texture, render, gpu_data
 
 """
-Replacement of Pkg.dir("GLVisualize") --> GLVisualize.dir,
-returning the correct path
-"""
-dir(dirs...) = Pkg.dir("GLVisualize", dirs...)
-
-"""
-returns path relative to the assets folder
-"""
-assetpath(folders...) = dir("assets", folders...)
-
-"""
 Loads a file from the asset folder
 """
 function loadasset(folders...; kw_args...)
@@ -20,7 +9,6 @@ function loadasset(folders...; kw_args...)
     isfile(path) || isdir(path) || error("Could not locate file at $path")
     load(path; kw_args...)
 end
-
 
 type TextureAtlas
     rectangle_packer::RectanglePacker
@@ -31,6 +19,7 @@ type TextureAtlas
     scale           ::Vector{Vec2f0}
     extent          ::Vector{FontExtent{Float64}}
 end
+
 function atlas_texture(data)
     images = Texture(
         data,

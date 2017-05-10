@@ -1,8 +1,8 @@
 using Visualize
 using Base.Test
+using Visualize.GLRasterization: GLFWWindow
 
-
-function Canvas()
+window = GLFWWindow()
 
 
 canvas = Canvas()

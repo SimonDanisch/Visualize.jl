@@ -1,4 +1,28 @@
+module JLRasterization
 
+using Colors, ColorVectorSpace, StaticArrays
+using GeometryTypes, Interpolations
+using ..Visualize: DepthBuffer, ColorBuffer, Area
+
+using FieldTraits
+using FieldTraits: ComposableLike, @composed
+import FieldTraits: convertfor
+
+
+@composed type JLCanvas
+    Area
+    DepthBuffer
+    ColorBuffer
+end
+
+function convertfor(::Type{JLCanvas}, ::Type{DepthBuffer}, canvas::ComposableLike)
+    w, h = widths(get(canvas, Area))
+    ones(Float32, w, h)
+end
+function convertfor(::Type{JLCanvas}, ::Type{ColorBuffer}, canvas::ComposableLike)
+    w, h = widths(get(canvas, Area))
+    (zeros(RGBA{Float32}, w, h), )
+end
 
 
 @inline function edge_function(a, b, c)
@@ -143,24 +167,6 @@ function JLRasterizer(
     )
 end
 
-@field Depthbuffer
-@field Framebuffer
-
-
-@composed type JLCanvas
-    Area
-    Depthbuffer
-    Framebuffer
-end
-
-function Base.convert(::Type{JLCanvas}, ::Type{Depthbuffer}, canvas::ComposableLike)
-    w, h = widths(get(canvas, Area))
-    ones(Float32, w, h)
-end
-function Base.convert(::Type{JLCanvas}, ::Type{Framebuffer}, canvas::ComposableLike)
-    w, h = widths(get(canvas, Area))
-    (zeros(RGBA{Float32}, w, h), )
-end
 
 Base.@pure Next{N}(::Val{N}) = Val{N - 1}()
 @inline interpolate{N, T}(bary, vertex::NTuple{N, T}, vn::Val{0}, aggregate) = T(aggregate...)
@@ -181,7 +187,7 @@ broadcastmax(a, b) = max.(a, b)
 function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
         canvas, vertex_array::AbstractArray{Vert}, uniforms::Args
     )
-    framebuffers = canvas[Framebuffer]; depthbuffer = canvas[Depthbuffer]
+    framebuffers = canvas[ColorBuffer]; depthbuffer = canvas[DepthBuffer]
     resolution = Vec2f0(size(framebuffers[1]))
     # hoisting out functions... Seems to help inference a bit. Or not?
     vshader = r.vertexshader
@@ -245,4 +251,6 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
         end
     end
     return
+end
+
 end
