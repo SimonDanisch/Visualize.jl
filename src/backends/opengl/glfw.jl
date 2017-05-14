@@ -24,17 +24,13 @@ Expects a Vector{Tuple{GLenum, Integer}}. E.g:
 """
 @field ContextHints
 
-function default(T, ::Type{ContextHints}, data)
-    version = get(data, OpenGLVersion)
-    standard_context_hints(version)
-end
-
 """
 Tries to create sensible context hints!
 Taken from lessons learned at:
 [GLFW](http://www.glfw.org/docs/latest/window.html)
 """
-function standard_context_hints(version)
+function default{X}(::Type{ContextHints}, p::Parent{GLFWWindow, X})
+    version = get(p.val, OpenGLVersion)
     major, minor = version.major, version.minor
     # this is spaar...Modern OpenGL !!!!
     # core profile is only supported for OpenGL 3.2+ (and a must for OSX, so
@@ -51,6 +47,7 @@ function standard_context_hints(version)
         (GLFW.OPENGL_PROFILE, profile)
     ]
 end
+
 
 """
 OpenGL Framebuffer hint for the window creation with GLFW.
@@ -77,7 +74,8 @@ Expects a Vector{Tuple{GLenum, Integer}}. E.g:
     (GLFW.AUX_BUFFERS,  0)
 ]
 
-function default(::Type{GLFWWindow}, ::Type{Window}, data)
+
+function default{X}(::Type{Window}, data::Parent{GLFWWindow, X})
     area = get(data, Area)
     # we create a new context, so we need to clear the shader cache.
     # TODO, cache shaders in GLAbstraction per GL context
@@ -100,7 +98,7 @@ function default(::Type{GLFWWindow}, ::Type{Window}, data)
     GLFW.WindowHint(GLFW.OPENGL_DEBUG_CONTEXT, Cint(debugging))
     resolution = round.(Int, widths(get(data, Area)))
     name = get(data, Name)
-    window = GLFW.CreateWindow(resolution..., Compat.String(name))
+    window = GLFW.CreateWindow(resolution..., String(name))
     GLFW.MakeContextCurrent(window)
 
     # tell GLAbstraction that we created a new context.
@@ -116,7 +114,7 @@ end
 Adds the Mouse.Position event via GLFW
 """
 function add!(window::GLFWWindow, ::Type{Mouse.Position})
-    GLFW.SetCursorPosCallback(window, (native_window, x, y) -> begin
+    GLFW.SetCursorPosCallback(window[Window], (native_window, x, y) -> begin
         events[Mouse.Position] = (x, y)
     end)
     return
@@ -126,7 +124,7 @@ end
 Adds the Mouse.Scroll event via GLFW
 """
 function add!(window::GLFWWindow, ::Type{Mouse.Scroll})
-    GLFW.SetScrollCallback(window, (native_window, xoffset, yoffset) -> begin
+    GLFW.SetScrollCallback(window[Window], (native_window, xoffset, yoffset) -> begin
         window[Mouse.Scroll] = (xoffset, yoffset)
     end)
     return
@@ -136,7 +134,7 @@ end
 Adds the Mouse.Buttons event via GLFW
 """
 function add!(window::GLFWWindow, ::Type{Mouse.Buttons})
-    GLFW.SetMouseButtonCallback(window, (native_window, button, action, mods) -> begin
+    GLFW.SetMouseButtonCallback(window[Window], (native_window, button, action, mods) -> begin
         set = window[Mouse.Buttons]
         button_enum = Mouse.Button(button)
         if button != GLFW.KEY_UNKNOWN
@@ -156,11 +154,11 @@ function add!(window::GLFWWindow, ::Type{Mouse.Buttons})
 end
 
 function add!(window::GLFWWindow, ::Type{Area})
-    GLFW.SetFramebufferSizeCallback(window, (native_window, w, h) -> begin
+    GLFW.SetFramebufferSizeCallback(window[Window], (native_window, w, h) -> begin
         rect = window[Area]
         window[Area] = IRect(minimum(rect), w, h)
     end)
-    GLFW.SetWindowPosCallback(window, (window, x, y) -> begin
+    GLFW.SetWindowPosCallback(window[Window], (window, x, y) -> begin
         rect = window[Area]
         window[Area] = IRect(x, y, widths(rect))
     end)
@@ -172,7 +170,7 @@ end
 Adds the Keyboard.Buttons event via GLFW
 """
 function add!(window::GLFWWindow, ::Type{Keyboard.Buttons})
-    GLFW.SetKeyCallback(window, (native_window, button, scancode, action, mods) -> begin
+    GLFW.SetKeyCallback(window[Window], (native_window, button, scancode, action, mods) -> begin
         set = window[Keyboard.Buttons]
         button_enum = Keyboard.Button(button)
         if button != GLFW.KEY_UNKNOWN
@@ -195,7 +193,7 @@ end
 [GLFW Docs](http://www.glfw.org/docs/latest/group__window.html#ga6b5f973531ea91663ad707ba4f2ac104)
 """
 function hasfocus(window, events)
-    GLFW.SetWindowFocusCallback(window, (window, focus::Bool) -> begin
+    GLFW.SetWindowFocusCallback(window[Window], (window, focus::Bool) -> begin
         push!(s, focus)
     end)
     s
@@ -205,7 +203,7 @@ end
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga762d898d9b0241d7e3e3b767c6cf318f)
 """
 function entered_window(window, events)
-    GLFW.SetCursorEnterCallback(window, (window, entered::Bool) -> begin
+    GLFW.SetCursorEnterCallback(window[Window], (window, entered::Bool) -> begin
         push!(s, entered)
     end)
     s
@@ -215,7 +213,7 @@ end
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
 """
 function unicode_input(window, events)
-    GLFW.SetCharCallback(window, (window, c::Char) -> begin
+    GLFW.SetCharCallback(window[Window], (window, c::Char) -> begin
         push!(s, Char[c])
         push!(s, Char[])
     end)
@@ -226,7 +224,7 @@ end
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#gacc95e259ad21d4f666faa6280d4018fd)
 """
 function dropped_files(window, events)
-    GLFW.SetDropCallback(window, (window, files) -> begin
+    GLFW.SetDropCallback(window[Window], (window, files) -> begin
         push!(s, map(Compat.String, files))
     end)
     s
@@ -236,7 +234,7 @@ end
 [GLFW Docs](http://www.glfw.org/docs/latest/group__window.html#gaade9264e79fae52bdb78e2df11ee8d6a)
 """
 function window_open(window, events)
-    GLFW.SetWindowCloseCallback(window, window -> begin
+    GLFW.SetWindowCloseCallback(window[Window], window -> begin
         events[WindowOpen] = false
     end)
 end

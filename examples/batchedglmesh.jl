@@ -159,7 +159,6 @@ end
 add!(cam, Translation, events,
     Mouse.right, Set([Keyboard.left_control])
 )
-
 add!(cam, Rotation, events,
     Mouse.left, Set([Keyboard.left_control])
 )

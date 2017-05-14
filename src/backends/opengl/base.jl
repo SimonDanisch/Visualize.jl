@@ -12,10 +12,11 @@ import Transpiler: gli
 using FieldTraits
 using FieldTraits: @reactivecomposed, @field, @composed, @needs
 using FieldTraits: Composable, ComposableLike, Field, UsageError, Fields, Links
-using FieldTraits: ReactiveComposable
+using FieldTraits: ReactiveComposable, Parent
 import FieldTraits: on, default
 
 using Visualize: WindowEvents, Area, Window, Mouse, Keyboard, Visible, Focused
+using Visualize: Debugging, Name
 import Visualize: add!
 
 
