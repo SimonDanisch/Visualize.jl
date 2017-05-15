@@ -115,7 +115,7 @@ Adds the Mouse.Position event via GLFW
 """
 function add!(window::GLFWWindow, ::Type{Mouse.Position})
     GLFW.SetCursorPosCallback(window[Window], (native_window, x, y) -> begin
-        events[Mouse.Position] = (x, y)
+        window[Mouse.Position] = (x, y)
     end)
     return
 end
@@ -158,7 +158,7 @@ function add!(window::GLFWWindow, ::Type{Area})
         rect = window[Area]
         window[Area] = IRect(minimum(rect), w, h)
     end)
-    GLFW.SetWindowPosCallback(window[Window], (window, x, y) -> begin
+    GLFW.SetWindowPosCallback(window[Window], (native_window, x, y) -> begin
         rect = window[Area]
         window[Area] = IRect(x, y, widths(rect))
     end)

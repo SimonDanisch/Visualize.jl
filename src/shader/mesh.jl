@@ -2,6 +2,7 @@ function vert_mesh(vertex::VertexN, light, shading, args)
     #args = (solid_color, proj, view)
     proj = args[2]
     viewmodel = args[3]
+    
     pos = vertex.position
     position_camspace = viewmodel * Vec4f0(pos[1], pos[2], pos[3],  1f0)
     # direction to light

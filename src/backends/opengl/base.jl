@@ -17,7 +17,7 @@ import FieldTraits: on, default
 
 using Visualize: WindowEvents, Area, Window, Mouse, Keyboard, Visible, Focused
 using Visualize: Debugging, Name
-import Visualize: add!
+import Visualize: add!, IRect
 
 
 include("glutils.jl")
