@@ -1,3 +1,4 @@
+abstract type AbstractWindow <: ReactiveComposable end
 abstract type WindowEvent <: Field end
 
 """
@@ -172,18 +173,19 @@ module Keyboard
     Buttons
 end
 
-@field WindowOpen <: WindowEvent = false
-@field WindowSize <: WindowEvent = (0, 0)
-@field WindowPosition <: WindowEvent = (0, 0)
+@field Open <: WindowEvent = false
 @field EnteredWindow <: WindowEvent = false
 @field DroppedFiles <: WindowEvent = String[]
 
 # Complex events
 @field Mouse2Object <: WindowEvent = nothing
 
+"Panning event"
+@field Pan
+
 @reactivecomposed type WindowEvents
     Area
-    WindowOpen
+    Open
     EnteredWindow
     Focused
 
@@ -289,5 +291,4 @@ function ispressed(events::Composable, button)
 end
 
 
-"Panning event"
-@field Pan
+isopen(x::AbstractWindow) = x[Open]

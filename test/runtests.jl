@@ -1,11 +1,8 @@
-using Visualize, GeometryTypes
-
-using Visualize: add!, PerspectiveCamera, TranslationSpeed, LookAt, EyePosition
-using Visualize: Area, RotationSpeed, Translation, Rotation, Keyboard, Window
-using Visualize: Mouse, Pan, View, Projection
-using Visualize.GLRasterization: GLFWWindow
+using Visualize, GeometryTypes, ModernGL
+using Visualize.GLRasterization
 
 window = GLFWWindow()
+
 for event in Visualize.NativeWindowEvents
     add!(window, event)
 end
@@ -31,7 +28,6 @@ add!(cam, EyePosition, LookAt)
 
 using ModernGL, FileIO
 import Visualize: GLRasterization
-using GLRasterization: VertexArray, normalmesh, UniformBuffer, GLRasterizer
 using Visualize: VertexN, Light, Shading, vert_mesh, frag_mesh
 
 
@@ -48,11 +44,10 @@ shading = Shading(
     Vec3f0(0.3),
     8.0f0
 )
-
 # Create a functor
 catmesh = normalmesh(load(Pkg.dir("GLVisualize", "assets", "cat.obj")))
 catmesh = Base.view(
-    reinterpret(VertexN, catmesh.parent), catmesh.indexes[1]
+    reinterpret(Visualize.VertexN, catmesh.parent), catmesh.indexes[1]
 )
 GLFW.ShowWindow(window[Window])
 
@@ -64,19 +59,25 @@ draw_cat = GLRasterizer(
     uniforms,
     vert_mesh, frag_mesh
 )
-
+glEnable(GL_DEPTH_TEST)
+glDepthMask(GL_TRUE)
+glDepthFunc(GL_LEQUAL)
+glDisable(GL_CULL_FACE)
+GLAbstraction.enabletransparency()
+draw_cat(vbo, uniforms)
+glUseProgram(draw_cat.program)
+glBindVertexArray(vbo.id)
 @async begin
     while !GLFW.WindowShouldClose(window[Window])
         GLFW.PollEvents()
+        glViewport(0, 0, widths(window[Area])...)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         args = (Vec3f0(1, 0, 0), cam[Projection], cam[View])
         uniforms[3][1] = args # update
-        draw_cat(vbo, uniforms)
+        GLRasterization.draw_vbo(vbo)
         GLFW.SwapBuffers(window[Window])
         sleep(0.001)
         yield()
     end
+    GLFW.DestroyWindow(window[Window])
 end
-
-
-GLFW.DestroyWindow(window[Window])

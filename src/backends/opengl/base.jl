@@ -16,12 +16,14 @@ using FieldTraits: ReactiveComposable, Parent
 import FieldTraits: on, default
 
 using Visualize: WindowEvents, Area, Window, Mouse, Keyboard, Visible, Focused
-using Visualize: Debugging, Name
+using Visualize: Debugging, Name, AbstractWindow, DroppedFiles, Open
 import Visualize: add!, IRect
 
 
 include("glutils.jl")
 include("glfw.jl")
 include("rasterpipeline.jl")
+
+export UniformBuffer, VertexArray, GLFWWindow, GLRasterizer
 
 end

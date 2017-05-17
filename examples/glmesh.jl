@@ -1,14 +1,11 @@
 using Visualize, ModernGL
-using Visualize: orthographicprojection, perspectiveprojection, lookat
-using Visualize: normalmesh, JLCanvas, Area, JLRasterizer, Framebuffer
-using Visualize: UniformBuffer, VertexArray, WindowEvents, Window
-
+using Visualize.GLRasterization
 using FileIO, Images, GeometryTypes
 
 include(Visualize.dir("src", "julia","mesh.jl"))
-
 catmesh = normalmesh(load(Pkg.dir("GLVisualize", "assets", "cat.obj")))
 catmesh = Base.view(reinterpret(MeshRender.Vertex, catmesh.parent), catmesh.indexes[1])
+
 proj = perspectiveprojection(42f0, 1f0, 0.1f0, 10f0)
 view = lookat(Vec3f0(1.5), Vec3f0(0.5), Vec3f0(0, -1, 0))
 solid_color = Vec3f0(0.0, 0.7, 1.0)

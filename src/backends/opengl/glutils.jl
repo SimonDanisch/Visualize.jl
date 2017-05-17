@@ -24,24 +24,9 @@ function draw_vbo{V, T}(vbo::VertexArray{V, T, DataType})
     glDrawArrays(gl_face_enum(vbo), 0, length(vbo))
 end
 
-
 Base.eltype{T, IT, N}(::VertexArray{T, IT, N}) = T
 Base.length(x::VertexArray) = x.length
 
-function uvmesh(prim::GeometryPrimitive, resolution = (2, 2))
-    uv = decompose(UV{Float32}, prim, resolution)
-    positions = decompose(Point2f0, prim, resolution)
-    faces = decompose(GLTriangle, prim, resolution)
-    vertices = map(identity, zip(positions, uv))
-    view(vertices, faces)
-end
-function normalmesh(prim)
-    V = GeometryTypes.vertices(prim)
-    N = GeometryTypes.normals(prim)
-    F = decompose(GLTriangle, prim)
-    verts = map((a, b)-> (a, b), V, N)
-    Base.view(verts, F)
-end
 
 function VertexArray(buffer::AbstractArray, attrib_location = 0; face_type = GLTriangle)
     VertexArray(GLBuffer(buffer), face_type, attrib_location)
@@ -209,6 +194,7 @@ end
 
 _getfield(x::GLSLScalarTypes, i) = x
 _getfield(x, i) = getfield(x, i)
+
 function iterate_fields{T, N}(buffer::UniformBuffer{T, N}, x, index)
     offset = buffer.elementsize * (index - 1)
     x_ref = isimmutable(x) ? Ref(x) : x
@@ -217,6 +203,7 @@ function iterate_fields{T, N}(buffer::UniformBuffer{T, N}, x, index)
         offset + buffer.offsets[i], base_ptr + fieldoffset(T, i), sizeof(fieldtype(T, i))
     end
 end
+
 function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Integer)
     if idx > length(buffer.buffer)
         throw(BoundsError(buffer, idx))
@@ -228,6 +215,7 @@ function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Inte
     GLAbstraction.bind(buffer.buffer, 0)
     element
 end
+
 function Base.push!{T, N}(buffer::UniformBuffer{T, N}, element::T)
     buffer.length += 1
     buffer[buffer.length] = element

@@ -5,7 +5,8 @@ add to GLVisualize.
 Simpley implement the same methods, and just type it with your window type.
 =#
 
-@composed type GLFWWindow <: ReactiveComposable
+
+@composed type GLFWWindow <: AbstractWindow
     <: WindowEvents
     Window
 end
@@ -63,7 +64,7 @@ Expects a Vector{Tuple{GLenum, Integer}}. E.g:
 """
 @field FramebufferHints = [
     (GLFW.SAMPLES,      0),
-    (GLFW.DEPTH_BITS,   0),
+    (GLFW.DEPTH_BITS,   32),
 
     (GLFW.ALPHA_BITS,   8),
     (GLFW.RED_BITS,     8),
@@ -192,50 +193,37 @@ end
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__window.html#ga6b5f973531ea91663ad707ba4f2ac104)
 """
-function hasfocus(window, events)
-    GLFW.SetWindowFocusCallback(window[Window], (window, focus::Bool) -> begin
-        push!(s, focus)
+function hasfocus(window::GLFWWindow, ::Type{Focused})
+    GLFW.SetWindowFocusCallback(window[Window], (native_window, focus::Bool) -> begin
+        window[Focused] = focus
     end)
-    s
 end
 
-"""
-[GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga762d898d9b0241d7e3e3b767c6cf318f)
-"""
-function entered_window(window, events)
-    GLFW.SetCursorEnterCallback(window[Window], (window, entered::Bool) -> begin
-        push!(s, entered)
-    end)
-    s
-end
 
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
 """
-function unicode_input(window, events)
-    GLFW.SetCharCallback(window[Window], (window, c::Char) -> begin
-        push!(s, Char[c])
-        push!(s, Char[])
+function unicode_input(window::GLFWWindow, ::Type{Keyboard.Unicode})
+    GLFW.SetCharCallback(window[Window], (native_window, c::Char) -> begin
+        s[Keyboard.Unicode] = c
     end)
-    s
 end
 
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#gacc95e259ad21d4f666faa6280d4018fd)
 """
-function dropped_files(window, events)
-    GLFW.SetDropCallback(window[Window], (window, files) -> begin
-        push!(s, map(Compat.String, files))
+function dropped_files(window::GLFWWindow, ::Type{DroppedFiles})
+    GLFW.SetDropCallback(window[Window], (native_window, files) -> begin
+        window[DroppedFiles] = map(String, files)
     end)
-    s
 end
 
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__window.html#gaade9264e79fae52bdb78e2df11ee8d6a)
 """
-function window_open(window, events)
-    GLFW.SetWindowCloseCallback(window[Window], window -> begin
-        events[WindowOpen] = false
+function window_open(window::GLFWWindow, ::Type{Open})
+    GLFW.SetWindowCloseCallback(window[Window], native_window -> begin
+        window[Open] = false
     end)
 end
 

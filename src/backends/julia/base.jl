@@ -7,7 +7,7 @@ using ..Visualize: DepthBuffer, ColorBuffer, Area
 using FieldTraits
 using FieldTraits: ComposableLike, @composed
 import FieldTraits: convertfor
-
+import Interpolations: interpolate
 
 @composed type JLCanvas
     Area
@@ -43,11 +43,12 @@ immutable Sampler{T, N, Buffer} <: AbstractArray{T, N}
     buffer::Buffer
     size::Vec{N, Float32}
 end
+
 function Sampler{T, N}(A::AbstractArray{T, N}, interpolation = Linear(), edge = Flat())
     Ai = extrapolate(interpolate(A, BSpline(interpolation), OnCell()), edge)
     Sampler{T, N, typeof(Ai)}(Ai, Vec{N, Float32}(size(A)) - 1f0)
 end
-@generated function Base.getindex{T, B, N, IF <: AbstractFloat}(x::Sampler{T, N, B}, idx::TextureCoordinate{N, IF})
+@generated function Base.getindex{T, B, N, IF <: AbstractFloat}(x::Sampler{T, N, B}, idx::StaticVector{N, IF})
     quote
         scaled = idx .* x.size + 1f0
         x.buffer[$(ntuple(i-> :(scaled[$i]), Val{N})...)] # why does splatting not work -.-
@@ -169,16 +170,22 @@ end
 
 
 Base.@pure Next{N}(::Val{N}) = Val{N - 1}()
-@inline interpolate{N, T}(bary, vertex::NTuple{N, T}, vn::Val{0}, aggregate) = T(aggregate...)
-@inline function interpolate{N}(bary, vertex, vn::Val{N}, aggregate = ())
+@inline function interpolate{N, T}(bary, face::NTuple{N, T}, vn::Val{0}, aggregate)
+    if T <: Tuple
+        aggregate
+    else
+        T(aggregate...)
+    end
+end
+@inline function interpolate{N}(bary, face, vn::Val{N}, aggregate = ())
     @inbounds begin
         res = (
-            bary[1] * getfield(vertex[1], N) .+
-            bary[2] * getfield(vertex[2], N) .+
-            bary[3] * getfield(vertex[3], N)
+            bary[1] * getfield(face[1], N) .+
+            bary[2] * getfield(face[2], N) .+
+            bary[3] * getfield(face[3], N)
         )
     end
-    interpolate(bary, vertex, Next(vn), (res, aggregate...))
+    interpolate(bary, face, Next(vn), (res, aggregate...))
 end
 
 broadcastmin(a, b) = min.(a, b)
@@ -194,7 +201,7 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
     gshader = r.geometryshader
     fshader = r.fragmentshader
     FragNVal = Val{FragN}()
-    @inbounds for face in vertex_array
+    for face in vertex_array
         vertex_stage = map(reverse(face)) do f
             vshader(f, uniforms...)
         end
@@ -232,7 +239,7 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
                         bary = w / area
                         depth = bary[1] * depths[1] + bary[2] * depths[2] + bary[3] * depths[3]
 
-                        if depth <= depthbuffer[yi, xi]
+                        if true#depth <= depthbuffer[yi, xi]
                             depthbuffer[yi, xi] = depth
                             fragment_in = interpolate(bary, vertex_out, FragNVal)
                             fragment_out = fshader(fragment_in, uniforms...)

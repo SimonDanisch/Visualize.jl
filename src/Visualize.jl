@@ -25,6 +25,7 @@ returning the correct path
 dir(dirs...) = joinpath(normpath(dirname(@__FILE__), ".."), dirs...)
 
 include("math.jl")
+include("utils.jl")
 include("base.jl")
 include("events.jl")
 
@@ -40,5 +41,18 @@ include("backends/julia/base.jl")
 include("backends/cairo/base.jl")
 include("backends/webgl/base.jl")
 include("backends/opengl/base.jl")
+
+
+
+
+using .GLRasterization
+using .JLRasterization
+
+export orthographicprojection, perspectiveprojection, lookat
+export normalmesh, uvmesh, JLCanvas, JLRasterizer, Area, Framebuffer
+export add!, PerspectiveCamera, TranslationSpeed, LookAt, EyePosition
+export RotationSpeed, Translation, Rotation, Keyboard, WindowEvents, Window
+export Mouse, Pan, View, Projection, IRect, Sampler, isopen
+
 
 end # module
