@@ -51,3 +51,15 @@ immutable VertexCS{N, T} <: Particle
     color::Vec4f0
     scale::Vec2f0
 end
+
+function aastep{T}(threshold1::T, value)
+    smoothstep(threshold1 - T(0.001), threshold1 + T(0.001), value)
+end
+
+function aastep{T}(threshold1::T, threshold2::T, value::T)
+    afwidth = T(0.001)
+    return (
+        smoothstep(threshold1 - afwidth, threshold1 + afwidth, value) -
+        smoothstep(threshold2 - afwidth, threshold2 + afwidth, value)
+    )
+end
