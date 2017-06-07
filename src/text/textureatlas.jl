@@ -1,36 +1,21 @@
 using Packing, FreeTypeAbstraction, SignedDistanceFields, FreeType
 using GLAbstraction: Texture, render, gpu_data
 
-"""
-Loads a file from the asset folder
-"""
-function loadasset(folders...; kw_args...)
-    path = assetpath(folders...)
-    isfile(path) || isdir(path) || error("Could not locate file at $path")
-    load(path; kw_args...)
-end
 
-type TextureAtlas
+type TextureAtlas{IMG <: AbstractSampler}
     rectangle_packer::RectanglePacker
     mapping         ::Dict{Any, Int} # styled glyph to index in sprite_attributes
     index           ::Int
-    images          ::Texture{Float16, 2}
+    images          ::IMG
     attributes      ::Vector{Vec4f0}
     scale           ::Vector{Vec2f0}
     extent          ::Vector{FontExtent{Float64}}
 end
 
-function atlas_texture(data)
-    images = Texture(
-        data,
-        minfilter = :linear,
-        magfilter = :linear,
-        anisotropic = 16f0,
-    )
-end
+
 
 function TextureAtlas(initial_size = (2048, 2048))
-    images = atlas_texture(zeros(Float16, initial_size...))
+    images = Sampler(zeros(Float32, initial_size...))
     TextureAtlas(
         RectanglePacker(SimpleRectangle(0, 0, initial_size...)),
         Dict{Any, Int}(),
@@ -50,10 +35,11 @@ begin #basically a singleton for the textureatlas
         'π','∮','⋅','→','∞','∑','∏','∀','∈','ℝ','⌈','⌉','−','⌊','⌋','α','∧','β','∨','ℕ','⊆','₀',
         '⊂','ℤ','ℚ','ℂ','⊥','≠','≡','≤','≪','⊤','⇒','⇔','₂','⇌','Ω','⌀',
     ]
-    const local _atlas_cache = Dict{WeakRef, TextureAtlas}()
+    const local _atlas_cache = TextureAtlas{Matrix{Float32}}[]
     const local _cache_path = joinpath(dirname(@__FILE__), "..", ".cache", "texture_atlas.jls")
     const local _default_font = Vector{Ptr{FreeType.FT_FaceRec}}[]
     const local _alternative_fonts = Vector{Ptr{FreeType.FT_FaceRec}}[]
+
 
     function defaultfont()
         if isempty(_default_font)
@@ -80,14 +66,7 @@ begin #basically a singleton for the textureatlas
     function cached_load()
         if isfile(_cache_path)
             return open(_cache_path) do io
-                dict = deserialize(io)
-                tex = atlas_texture(dict[:images])
-                dict[:images] = tex
-                fields = map(fieldnames(TextureAtlas)) do n
-                    v = dict[n]
-                    isa(v, Vector) ? copy(v) : v # otherwise there seems to be a problem with resizing
-                end
-                TextureAtlas(fields...)
+                deserialize(io)
             end
         else
             atlas = TextureAtlas()
@@ -109,17 +88,17 @@ begin #basically a singleton for the textureatlas
             mkdir(dirname(_cache_path))
         end
         open(_cache_path, "w") do io
-            dict = Dict(
-                [(n, getfield(atlas, n)) for n in fieldnames(atlas)]
-            )
-            dict[:images] = gpu_data(dict[:images])
-            serialize(io, dict)
+            serialize(io, atlas)
         end
     end
 
-    function get_texture_atlas(w)
-        get!(_atlas_cache, WeakRef(w)) do
-            cached_load() # initialize only on demand
+    function get_texture_atlas()
+        if isempty(_atlas_cache)
+            atlas = cached_load() # initialize only on demand
+            push!(_atlas_cache, atlas)
+            atlas
+        else
+            _atlas_cache[]
         end
     end
 

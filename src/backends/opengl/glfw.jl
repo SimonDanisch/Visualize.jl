@@ -5,13 +5,14 @@ add to GLVisualize.
 Simpley implement the same methods, and just type it with your window type.
 =#
 
+@field OpenGLVersion = v"3.1.0"
 
 @composed type GLFWWindow <: AbstractWindow
     <: WindowEvents
+    OpenGLVersion
     Window
 end
 
-@field OpenGLVersion = v"3.1.0"
 
 """
 OpenGL context hint for the window creation with GLFW
@@ -30,8 +31,8 @@ Tries to create sensible context hints!
 Taken from lessons learned at:
 [GLFW](http://www.glfw.org/docs/latest/window.html)
 """
-function default{X}(::Type{ContextHints}, p::Parent{GLFWWindow, X})
-    version = get(p.val, OpenGLVersion)
+function default(::Type{ContextHints}, p::Partial{GLFWWindow})
+    version = get(p, OpenGLVersion)
     major, minor = version.major, version.minor
     # this is spaar...Modern OpenGL !!!!
     # core profile is only supported for OpenGL 3.2+ (and a must for OSX, so
@@ -76,7 +77,7 @@ Expects a Vector{Tuple{GLenum, Integer}}. E.g:
 ]
 
 
-function default{X}(::Type{Window}, data::Parent{GLFWWindow, X})
+function default(::Type{Window}, data::Partial{GLFWWindow})
     area = get(data, Area)
     # we create a new context, so we need to clear the shader cache.
     # TODO, cache shaders in GLAbstraction per GL context
@@ -104,7 +105,7 @@ function default{X}(::Type{Window}, data::Parent{GLFWWindow, X})
 
     # tell GLAbstraction that we created a new context.
     # This is important for resource tracking
-    GLAbstraction.new_context()
+    GLAbstraction.new_context(window)
 
     debugging && glDebugMessageCallbackARB(_openglerrorcallback, C_NULL)
     window
@@ -228,6 +229,11 @@ function window_open(window::GLFWWindow, ::Type{Open})
 end
 
 
+Base.isopen(window::GLFWWindow) = window[Open]
+show!(window::GLFWWindow) = GLFW.ShowWindow(window[Window])
+destroy!(window::GLFWWindow) = GLFW.DestroyWindow(window[Window])
+swapbuffers!(window::GLFWWindow) = GLFW.SwapBuffers(window[Window])
+
 function renderloop(window::GLFWWindow)
     while isopen(window)
         try
@@ -237,5 +243,20 @@ function renderloop(window::GLFWWindow)
         end
         yield()
     end
-    GLFW.DestroyWindow(window)
+    destroy!(window)
+end
+
+
+# Each opengl context needs it's own texture, since they're not valid across context
+const texture_cache = Dict{GLAbstraction.GLContext, Texture{2, Float32}}
+function atlas_texture(atlas::TextureAtlas = get_texture_atlas())
+    ctx = GLAbstraction.current_context()
+    get!(texture_cache, ctx) do
+        Texture(
+            atlas.images,
+            minfilter = :linear,
+            magfilter = :linear,
+            anisotropic = 16f0,
+        )
+    end
 end

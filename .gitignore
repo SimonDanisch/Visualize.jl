@@ -3,3 +3,4 @@
 *.jl.mem
 *.png
 *.csv
+src/.cache

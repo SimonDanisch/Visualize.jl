@@ -1,11 +1,11 @@
 @field SpatialOrder = (1, 2) # default value for SpatialOrder (xy)
 
 """
-Do a custom convert for SpatialOrder. Parent is left untyped, since this should apply
+Do a custom convert for SpatialOrder. Partial is left untyped, since this should apply
 to all SpatialOrders in all parent composables.
 If you need to overwrite behaviour if SpatialOrder is part of another composable, you just need to type parent
 """
-function convertfor(Parent, ::Type{SpatialOrder}, data, value)
+function convertfor(Partial, ::Type{SpatialOrder}, data, value)
     @needs data: image = ImageData
     N = ndims(image)
     if isa(value, Tuple) &&
@@ -50,7 +50,7 @@ E.g. use Ranges to indicate that an image should be mapped to a certain range.
 """
 Ranges
 
-function default(Parent, ::Type{Ranges}, data)
+function default(Partial, ::Type{Ranges}, data)
     @needs data: image = ImageData
     s = get(data, SpatialOrder) # if SpatialOrder in x, gets that, if not gets default(x, SpatialOrder)
     (0:size(image, s[1]), 0:size(image, s[2]))

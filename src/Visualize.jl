@@ -5,8 +5,8 @@ using Compat, FileIO, FieldTraits
 
 using FieldTraits: @reactivecomposed, @field, @composed, @needs
 using FieldTraits: Composable, ComposableLike, Field, UsageError, Fields, Links
-using FieldTraits: ReactiveComposable
-import FieldTraits: on, default
+using FieldTraits: ReactiveComposable, Partial
+import FieldTraits: on, default, convertfor
 
 using Colors, ColorVectorSpace, StaticArrays
 using GeometryTypes, Quaternions
@@ -23,6 +23,24 @@ Replacement of Pkg.dir("Visualize") --> Visualize.dir,
 returning the correct path
 """
 dir(dirs...) = joinpath(normpath(dirname(@__FILE__), ".."), dirs...)
+
+
+"""
+returns path relative to the assets folder
+"""
+assetpath(folders...) = dir("assets", folders...)
+
+"""
+Loads a file from the asset folder
+"""
+function loadasset(folders...; kw_args...)
+    path = assetpath(folders...)
+    isfile(path) || isdir(path) || error("Could not locate file at $path")
+    load(path; kw_args...)
+end
+
+export assetpath, loadasset
+
 
 include("math.jl")
 include("utils.jl")

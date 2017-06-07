@@ -1,3 +1,4 @@
+using Visualize
 resolution = (500, 500)
 w = GLWindow.create_glcontext(resolution = resolution)
 
@@ -47,5 +48,3 @@ while isopen(w)
     GLWindow.swapbuffers(w)
 end
 GLFW.DestroyWindow(w)
-
-Visualize.gl_face_enum(vbo) == GL_TRIANGLES

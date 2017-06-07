@@ -32,9 +32,15 @@ end
 @field Primitive
 
 """
-The Area something is view in. Can be a Rectangle or a tuple with two elements.
+The Area of a viewable. Can be a Rectangle or a tuple with two elements.
 """
 @field Area = IRect(0, 0, 500, 500)
+
+function convertfor(::Type{Area}, x::Partial, value)
+    isa(value, Tuple) && length(value) == 2 && return IRect(0, 0, value...)
+    isa(value, SimpleRectangle) && return IRect(origin(value), widths(value))
+    throw(UsageError(Area, value))
+end
 
 @field Spacetransform = identity
 

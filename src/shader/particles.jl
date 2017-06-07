@@ -30,7 +30,7 @@ const Sprite3 = Sprite{3, Float32}
 
 
 getuvrect(x::Vertex) = Vec4f0(0)
-getuvrect(x::Sprite) = x.uvrect
+getuvrect(x::Sprite) = x.uv
 
 getcolor(x) = x.color
 getstrokecolor(x) = x.strokecolor
@@ -84,6 +84,7 @@ function geometry_main(emit!, geom_in, uniforms)
     emit_vertex(emit!, quad[Vec(3, 4)], uvnormed[Vec(3, 2)], uv[Vec(3, 2)], arg, pos, uniforms)
     return
 end
+
 function fragment_main(fragment_in, uniforms)
     uv = fragment_in[1]; uv_offset = fragment_in[2]; color = fragment_in[3];
     signed_distance = uniforms.distance_func(uv)
@@ -127,10 +128,21 @@ function geometry_main(emit!, vertex_out, uniforms, image)
     emit_vertex(emit!, quad[Vec(3, 4)], uv[Vec(3, 2)], arg, pos, uniforms)
     return
 end
+
 function fragment_main(geom_out, uniforms, image)
     uv_offset = geom_out[1]; color = geom_out[2];
     signed_distance = -image[uv_offset][1]
     inside = aastep(0f0, signed_distance)
     bg = Vec4f0(1f0, 1f0, 1f0, 0f0)
     (mix(bg, color, inside),)
+end
+function vertex_main(vertex, uniforms, image)
+    p = getposition(vertex)
+    scale = getscale(vertex)
+    geom = Vertex2Geom(
+        getuvrect(vertex),
+        getcolor(vertex),
+        Vec4f0(p[1], p[2], scale[1], scale[2])
+    )
+    geom
 end

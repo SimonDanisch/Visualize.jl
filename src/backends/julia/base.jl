@@ -5,8 +5,8 @@ using GeometryTypes, Interpolations
 using ..Visualize: DepthBuffer, ColorBuffer, Area
 
 using FieldTraits
-using FieldTraits: ComposableLike, @composed
-import FieldTraits: convertfor
+using FieldTraits: ComposableLike, @composed, Partial
+import FieldTraits: convertfor, default
 import Interpolations: interpolate
 
 @composed type JLCanvas
@@ -15,11 +15,11 @@ import Interpolations: interpolate
     ColorBuffer
 end
 
-function convertfor(::Type{JLCanvas}, ::Type{DepthBuffer}, canvas::ComposableLike)
+function default(::Type{DepthBuffer}, canvas::Partial{JLCanvas})
     w, h = widths(get(canvas, Area))
     ones(Float32, w, h)
 end
-function convertfor(::Type{JLCanvas}, ::Type{ColorBuffer}, canvas::ComposableLike)
+function default(::Type{ColorBuffer}, canvas::Partial{JLCanvas})
     w, h = widths(get(canvas, Area))
     (zeros(RGBA{Float32}, w, h), )
 end
@@ -37,22 +37,6 @@ blend(source, dest, src_func, dest_func) = clamp01(src_func(source) .+ dest_func
 ColorTypes.alpha(x::StaticVector) = x[4]
 function standard_transparency{T}(source, dest::T)
     (alpha(source) .* source) .+ ((one(eltype(T)) - alpha(source)) .* dest)
-end
-
-immutable Sampler{T, N, Buffer} <: AbstractArray{T, N}
-    buffer::Buffer
-    size::Vec{N, Float32}
-end
-
-function Sampler{T, N}(A::AbstractArray{T, N}, interpolation = Linear(), edge = Flat())
-    Ai = extrapolate(interpolate(A, BSpline(interpolation), OnCell()), edge)
-    Sampler{T, N, typeof(Ai)}(Ai, Vec{N, Float32}(size(A)) - 1f0)
-end
-@generated function Base.getindex{T, B, N, IF <: AbstractFloat}(x::Sampler{T, N, B}, idx::StaticVector{N, IF})
-    quote
-        scaled = idx .* x.size + 1f0
-        x.buffer[$(ntuple(i-> :(scaled[$i]), Val{N})...)] # why does splatting not work -.-
-    end
 end
 
 
@@ -120,15 +104,9 @@ function geometry_return_type(vertex_array, vertexshader, geometryshader, unifor
     typ
 end
 
-function arglength{T <: Tuple}(::Type{T})
-    length(T.parameters)
-end
-function arglength{T <: AbstractArray}(::Type{T})
-    1
-end
-function arglength{T}(::Type{T})
-    nfields(T)
-end
+arglength{T <: Tuple}(::Type{T}) = length(T.parameters)
+arglength{T <: AbstractArray}(::Type{T}) = 1
+arglength{T}(::Type{T}) = nfields(T)
 
 function JLRasterizer(
         vertexarray::AbstractArray,
