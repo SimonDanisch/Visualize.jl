@@ -77,6 +77,32 @@ Expects a Vector{Tuple{GLenum, Integer}}. E.g:
 ]
 
 
+"""
+Callback which can be used to catch OpenGL errors.
+"""
+function openglerrorcallback(
+        source::GLenum, typ::GLenum,
+        id::GLuint, severity::GLenum,
+        length::GLsizei, message::Ptr{GLchar},
+        userParam::Ptr{Void}
+    )
+    errormessage = """
+         ________________________________________________________________
+        |
+        | OpenGL Error!
+        | source: $(GLENUM(source).name) :: type: $(GLENUM(typ).name)
+        |  $(unsafe_string(message, length))
+        |________________________________________________________________
+    """
+    output = typ == GL_DEBUG_TYPE_ERROR ? error : info
+    output(errormessage)
+    nothing
+end
+
+global const _openglerrorcallback = cfunction(
+    openglerrorcallback, Void,
+    (GLenum, GLenum,GLuint, GLenum, GLsizei, Ptr{GLchar}, Ptr{Void})
+)
 function default(::Type{Window}, data::Partial{GLFWWindow})
     area = get(data, Area)
     # we create a new context, so we need to clear the shader cache.
@@ -246,13 +272,14 @@ function renderloop(window::GLFWWindow)
     destroy!(window)
 end
 
-
+using Visualize: TextureAtlas, get_texture_atlas
+using GPUArrays.GLBackend: GLSampler
 # Each opengl context needs it's own texture, since they're not valid across context
-const texture_cache = Dict{GLAbstraction.GLContext, Texture{2, Float32}}
+const texture_cache = Dict{GLAbstraction.GLContext, GLSampler{Float32, 2}}
 function atlas_texture(atlas::TextureAtlas = get_texture_atlas())
     ctx = GLAbstraction.current_context()
     get!(texture_cache, ctx) do
-        Texture(
+        GLSampler(
             atlas.images,
             minfilter = :linear,
             magfilter = :linear,
