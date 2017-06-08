@@ -1,6 +1,10 @@
 using Packing, FreeTypeAbstraction, SignedDistanceFields, FreeType
 using GLAbstraction: Texture, render, gpu_data
 
+using GPUArrays: AbstractSampler, JLBackend
+using GPUArrays.JLBackend: Sampler
+
+
 
 type TextureAtlas{IMG <: AbstractSampler}
     rectangle_packer::RectanglePacker
@@ -35,7 +39,7 @@ begin #basically a singleton for the textureatlas
         'π','∮','⋅','→','∞','∑','∏','∀','∈','ℝ','⌈','⌉','−','⌊','⌋','α','∧','β','∨','ℕ','⊆','₀',
         '⊂','ℤ','ℚ','ℂ','⊥','≠','≡','≤','≪','⊤','⇒','⇔','₂','⇌','Ω','⌀',
     ]
-    const local _atlas_cache = TextureAtlas{Matrix{Float32}}[]
+    const local _atlas_cache = TextureAtlas{Sampler{Float32, 2}}[]
     const local _cache_path = joinpath(dirname(@__FILE__), "..", ".cache", "texture_atlas.jls")
     const local _default_font = Vector{Ptr{FreeType.FT_FaceRec}}[]
     const local _alternative_fonts = Vector{Ptr{FreeType.FT_FaceRec}}[]
