@@ -89,7 +89,6 @@ end
 
 function compile_program(shaders...)
     program = GLAbstraction.createprogram()
-    glUseProgram(program)
     #attach new ones
     foreach(shaders) do shader
         glAttachShader(program, shader.id)
@@ -121,7 +120,6 @@ end
 const GLSLScalarTypes = Union{Float32, Int32, UInt32}
 Base.eltype{T, N}(::UniformBuffer{T, N}) = T
 
-
 function glsl_sizeof(T)
     T <: Bool && return sizeof(Int32)
     T <: GLSLScalarTypes && return sizeof(T)
@@ -145,11 +143,18 @@ function std140_offsets{T}(::Type{T})
         (0,)
     else
         offset = 0
+        last_padd = 0
         offsets = ntuple(nfields(T)) do i
             ft = fieldtype(T, i)
             sz = glsl_sizeof(ft)
             of = offset
-            offset += sz
+            if last_padd == sz # fits in previous padd
+                of -= sz
+                #offset += sz
+            else
+                offset += sz
+            end
+            last_padd = sz - sizeof(ft)
             of
         end
         elementsize = offset
@@ -198,7 +203,7 @@ _getfield(x, i) = getfield(x, i)
 function iterate_fields{T, N}(buffer::UniformBuffer{T, N}, x, index)
     offset = buffer.elementsize * (index - 1)
     x_ref = isimmutable(x) ? Ref(x) : x
-    base_ptr = pointer_from_objref(x_ref)
+    base_ptr = Ptr{UInt8}(pointer_from_objref(x_ref))
     ntuple(Val{N}) do i
         offset + buffer.offsets[i], base_ptr + fieldoffset(T, i), sizeof(fieldtype(T, i))
     end
@@ -208,11 +213,14 @@ function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Inte
     if idx > length(buffer.buffer)
         throw(BoundsError(buffer, idx))
     end
-    GLAbstraction.bind(buffer.buffer)
+    buff = buffer.buffer
+    glBindBuffer(buff.buffertype, buff.id)
+    dptr = Ptr{UInt8}(glMapBuffer(buff.buffertype, GL_WRITE_ONLY))
     for (offset, ptr, size) in iterate_fields(buffer, element, idx)
-        glBufferSubData(GL_UNIFORM_BUFFER, offset, size, ptr)
+        unsafe_copy!(dptr + offset, ptr, size)
     end
-    GLAbstraction.bind(buffer.buffer, 0)
+    glUnmapBuffer(buff.buffertype)
+    GLAbstraction.bind(buff, 0)
     element
 end
 
