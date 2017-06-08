@@ -12,13 +12,13 @@ end
 function (p::GLRasterizer{Vertex, N, Args}){Vertex, N, Args}(vertexarray::VertexArray{Vertex}, uniforms::Args)
     glUseProgram(p.program)
     glBindVertexArray(vertexarray.id)
+    blockid = 0
     for (i, uniform_idx) in enumerate(p.uniform_locations)
         uniform = uniforms[i]
-        blockid = i - 1
-        if !isa(uniform, Texture)
-            glUniformBlockBinding(p.program, uniform_idx, blockid)
-            glBindBufferBase(GL_UNIFORM_BUFFER, blockid, uniforms[i].buffer.id)
-        else
+        if isa(uniform, UniformBuffer)
+            glBindBufferBase(GL_UNIFORM_BUFFER, blockid, uniform.buffer.id)
+            blockid += 1
+        elseif isa(uniform, Texture)
             GLAbstraction.gluniform(uniform_idx, blockid, uniform)
         end
     end
@@ -67,11 +67,15 @@ function GLRasterizer{T <: Tuple}(
     write(STDOUT, fsource)
     program = compile_program(shaders...)
     N = length(uniform_types)
+    block_idx = 0
     uniform_locations = ntuple(N) do i
         if isa(uniforms[i], Texture)
             GLAbstraction.get_uniform_location(program, "image")
         else
-            glGetUniformBlockIndex(program, glsl_gensym("UniformArg$i"))
+            idx = glGetUniformBlockIndex(program, glsl_gensym("UniformArg$i"))
+            glUniformBlockBinding(program, idx, block_idx)
+            block_idx += 1
+            idx
         end
     end
     GLRasterizer{vertex_type, N, T}(
