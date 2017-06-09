@@ -1,75 +1,3 @@
-using Visualize, GeometryTypes, ModernGL
-using Visualize: GLRasterization, TextUniforms, get_texture_atlas, Sprite2
-using Visualize.GLRasterization: show!, destroy!
-using GPUArrays
-GLBackend.init()
-
-resolution = (1024, 1024)
-window = GLFWWindow(Area => resolution)
-for event in Visualize.NativeWindowEvents
-    add!(window, event)
-end
-show!(window)
-window[Visualize.Open] = true
-
-proj = orthographicprojection(SimpleRectangle(0, 0, resolution...), -10_000f0, 10_000f0)
-uniforms = TextUniforms(
-    proj,
-    Vec4f0(1, 0, 0, 1),
-    Vec4f0(1, 0, 1, 1)
-)
-
-atlas = get_texture_atlas();
-
-text = Visualize.Text(
-    Sprite2[],
-    Char[],
-    atlas,
-    [0],
-    Visualize.defaultfont(),
-    45f0,
-    0f0,
-    Vec4f0(0f0, 0f0, 0f0, 1f0),
-    Point2f0(0),
-    1.5
-);
-
-print(text, 'c')
-print(text, " lololol")
-text.color = Vec4f0(1f0, 0f0, 0f0, 1f0)
-print(text, " Muashahahaha@")
-
-uniform_buff = UniformBuffer(uniforms);
-vbo = VertexArray(text.data, face_type = Face{1, OffsetInteger{1, GLint}});
-Visualize.vertex_main(text.data[1], uniforms, ())
-atlas_tex = GPUArrays.buffer(GLRasterization.atlas_texture(atlas));
-draw_particles = GLRasterizer(
-    vbo, (uniform_buff, atlas_tex),
-    Visualize.vertex_main, Visualize.fragment_main;
-    geometry_main = Visualize.geometry_main
-)
-
-glDisable(GL_DEPTH_TEST)
-glClearColor(1, 1, 1, 0)
-GLAbstraction.enabletransparency()
-
-@async begin
-    while isopen(window)
-        GLFW.PollEvents()
-        glViewport(0, 0, widths(window[Area])...)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        draw_particles(vbo, (uniform_buff, atlas_tex))
-        GLRasterization.swapbuffers!(window)
-        sleep(0.001)
-        yield()
-    end
-    destroy!(window)
-end
-
-
-
-
-vert = """
 #version 330
 // dependant type declarations
 // Julia name: Symbol
@@ -147,9 +75,7 @@ void main()
     Sprite_2_float vertex;
     vertex = Sprite_2_float(vertex_position, vertex_offset, vertex_scale, vertex_uv, vertex_color);
     vertex_out = vertex_main(vertex, uniforms);
-}
-"""
-geom = """
+}---------------------------
 #version 330
 layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
@@ -185,7 +111,7 @@ struct Visualize1GLRasterization12emit_placeholder{
 };
 
 in Vertex2Geom geom_in[];
-out Tuple_vec2_vec4 test_test_lol;
+out Tuple_vec2_vec4 geom_out;
 // uniform inputs:
 layout (std140) uniform _gensymed_UniformArg1{
     TextUniforms uniforms;
@@ -200,7 +126,7 @@ void emit_vertex(Visualize1GLRasterization12emit_placeholder emit3, vec2 vertex,
     datapoint = uniforms.projection * vec4(pos.x, pos.y, 0, 1);
     final_position = uniforms.projection * vec4(vertex.x, vertex.y, 0, 0);
     gl_Position = datapoint + final_position;
-    test_test_lol = Tuple_vec2_vec4(uv, arg.color);
+    geom_out = Tuple_vec2_vec4(uv, arg.color);
     EmitVertex();
     ;
 }
@@ -231,9 +157,7 @@ void main()
     Visualize1GLRasterization12emit_placeholder emit3;
     EndPrimitive();
 }
-"""
-
-frag = """
+---------------------------
 #version 330
 // dependant type declarations
 // Julia name: Visualize.TextUniforms
@@ -243,6 +167,12 @@ struct TextUniforms{
     vec4 glowcolor;
 };
 
+// Julia name: Symbol
+struct Symbol{
+    float empty; // structs can't be empty
+};
+
+// Julia name: Tuple{GeometryTypes.Vec{2,Float32},GeometryTypes.Vec{4,Float32}}
 struct Tuple_vec2_vec4{
     vec2 field1;
     vec4 field2;
@@ -263,7 +193,7 @@ layout (std140) uniform _gensymed_UniformArg1{
 };
 
 uniform sampler2D image;
-in Tuple_vec2_vec4 test_test_lol;
+in Tuple_vec2_vec4 geom_out;
 layout (location = 0) out vec4 _gensymed_color0;
 
 // fragment main function:
@@ -274,17 +204,10 @@ void main()
     float signed_distance;
     vec4 color;
     vec2 uv;
-    uv = test_test_lol.field1;
-    color = test_test_lol.field2;
+    uv = geom_out.field1;
+    color = geom_out.field2;
     signed_distance = -(getindex(image, uv).x);
     inside = aastep(0.0, signed_distance);
     bg = vec4(1.0, 1.0, 1.0, 0.0);
     _gensymed_color0 = mix(bg, color, inside);
 }
-"""
-
-
-vshader = GLAbstraction.compile_shader(Vector{UInt8}(vert), GL_VERTEX_SHADER, :particle_vert)
-gshader = GLAbstraction.compile_shader(Vector{UInt8}(geom), GL_GEOMETRY_SHADER, :particle_geom)
-fshader = GLAbstraction.compile_shader(Vector{UInt8}(frag), GL_FRAGMENT_SHADER, :particle_frag)
-fshader = GLRasterization.compile_program(vshader, gshader, fshader)

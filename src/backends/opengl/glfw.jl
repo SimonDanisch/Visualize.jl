@@ -220,7 +220,7 @@ end
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__window.html#ga6b5f973531ea91663ad707ba4f2ac104)
 """
-function hasfocus(window::GLFWWindow, ::Type{Focused})
+function add!(window::GLFWWindow, ::Type{Focused})
     GLFW.SetWindowFocusCallback(window[Window], (native_window, focus::Bool) -> begin
         window[Focused] = focus
     end)
@@ -230,7 +230,7 @@ end
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#ga1e008c7a8751cea648c8f42cc91104cf)
 """
-function unicode_input(window::GLFWWindow, ::Type{Keyboard.Unicode})
+function add!(window::GLFWWindow, ::Type{Keyboard.Unicode})
     GLFW.SetCharCallback(window[Window], (native_window, c::Char) -> begin
         s[Keyboard.Unicode] = c
     end)
@@ -239,7 +239,7 @@ end
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__input.html#gacc95e259ad21d4f666faa6280d4018fd)
 """
-function dropped_files(window::GLFWWindow, ::Type{DroppedFiles})
+function add!(window::GLFWWindow, ::Type{DroppedFiles})
     GLFW.SetDropCallback(window[Window], (native_window, files) -> begin
         window[DroppedFiles] = map(String, files)
     end)
@@ -248,7 +248,7 @@ end
 """
 [GLFW Docs](http://www.glfw.org/docs/latest/group__window.html#gaade9264e79fae52bdb78e2df11ee8d6a)
 """
-function window_open(window::GLFWWindow, ::Type{Open})
+function add!(window::GLFWWindow, ::Type{Open})
     GLFW.SetWindowCloseCallback(window[Window], native_window -> begin
         window[Open] = false
     end)
@@ -275,12 +275,12 @@ end
 using Visualize: TextureAtlas, get_texture_atlas
 using GPUArrays.GLBackend: GLSampler
 # Each opengl context needs it's own texture, since they're not valid across context
-const texture_cache = Dict{GLAbstraction.GLContext, GLSampler{Float32, 2}}
+const texture_cache = Dict{GLAbstraction.GLContext, GLSampler{Float32, 2}}()
 function atlas_texture(atlas::TextureAtlas = get_texture_atlas())
     ctx = GLAbstraction.current_context()
     get!(texture_cache, ctx) do
         GLSampler(
-            atlas.images,
+            Array(atlas.images);
             minfilter = :linear,
             magfilter = :linear,
             anisotropic = 16f0,

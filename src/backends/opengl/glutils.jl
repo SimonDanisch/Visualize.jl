@@ -96,6 +96,10 @@ function compile_program(shaders...)
     #link program
     glLinkProgram(program)
     if !GLAbstraction.islinked(program)
+        for shader in shaders
+            write(STDOUT, shader.source)
+            println("---------------------------")
+        end
         error(
             "program $program not linked. Error in: \n",
             join(map(x-> string(x.name), shaders), " or "), "\n", GLAbstraction.getinfolog(program)

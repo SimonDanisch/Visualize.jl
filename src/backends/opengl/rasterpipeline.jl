@@ -43,7 +43,7 @@ function GLRasterizer{T <: Tuple}(
     argtypes = (vertex_type, uniform_types...)
     vsource, vertexout = emit_vertex_shader(vertex_main, argtypes)
     vshader = compile_shader(vsource, GL_VERTEX_SHADER, :particle_vert)
-    write(STDOUT, vsource)
+    # write(STDOUT, vsource)
     push!(shaders, vshader)
     fragment_in = vertexout # we first assume vertex stage outputs to fragment stage
     if geometry_main != nothing
@@ -54,7 +54,7 @@ function GLRasterizer{T <: Tuple}(
             primitive_in = primitive_in,
             primitive_out = primitive_out
         )
-        write(STDOUT, gsource)
+        # write(STDOUT, gsource)
         gshader = compile_shader(gsource, GL_GEOMETRY_SHADER, :particle_geom)
         push!(shaders, gshader)
         fragment_in = geomout # rewire if geometry shader is present
@@ -64,7 +64,7 @@ function GLRasterizer{T <: Tuple}(
     fsource, fragout = emit_fragment_shader(fragment_main, argtypes)
     fshader = compile_shader(fsource, GL_FRAGMENT_SHADER, :particle_frag)
     push!(shaders, fshader)
-    write(STDOUT, fsource)
+    # write(STDOUT, fsource)
     program = compile_program(shaders...)
     N = length(uniform_types)
     block_idx = 0
@@ -84,3 +84,5 @@ function GLRasterizer{T <: Tuple}(
 end
 
 export GLRasterizer
+
+exp = :(geom_out = Tuple{Vec{2,Float32}, Vec{4,Float32}}(x, y.color))

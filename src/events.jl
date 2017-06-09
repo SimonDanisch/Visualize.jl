@@ -215,7 +215,10 @@ const NativeWindowEvents = (
     Mouse.Scroll,
     Mouse.Buttons,
     Keyboard.Buttons,
-    Area
+    Area,
+    Open,
+    # EnteredWindow,
+    DroppedFiles
 )
 
 #
@@ -291,4 +294,4 @@ function ispressed(events::Composable, button)
 end
 
 
-isopen(x::AbstractWindow) = x[Open]
+Base.isopen(x::AbstractWindow) = x[Open]

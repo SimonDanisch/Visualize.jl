@@ -1,7 +1,7 @@
 using Visualize, GeometryTypes, ModernGL
 using Visualize.GLRasterization
 
-window = GLFWWindow()
+window = GLFWWindow(Area => (800, 600))
 
 for event in Visualize.NativeWindowEvents
     add!(window, event)
@@ -59,6 +59,7 @@ draw_cat = GLRasterizer(
     uniforms,
     vert_mesh, frag_mesh
 )
+
 glEnable(GL_DEPTH_TEST)
 glDepthMask(GL_TRUE)
 glDepthFunc(GL_LEQUAL)
@@ -67,6 +68,7 @@ GLAbstraction.enabletransparency()
 draw_cat(vbo, uniforms)
 glUseProgram(draw_cat.program)
 glBindVertexArray(vbo.id)
+glClearColor(1,1,1,1)
 @async begin
     while !GLFW.WindowShouldClose(window[Window])
         GLFW.PollEvents()
