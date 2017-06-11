@@ -2,10 +2,11 @@ using Visualize, GeometryTypes, ModernGL
 using Visualize: GLRasterization, TextUniforms, get_texture_atlas, Sprite2
 using Visualize.GLRasterization: show!, destroy!
 using GPUArrays
-GLBackend.init()
 
 resolution = (1024, 1024)
 window = GLFWWindow(Area => resolution)
+GLBackend.init(window[Window])
+
 for event in Visualize.NativeWindowEvents
     add!(window, event)
 end
@@ -35,7 +36,7 @@ text = Visualize.Text(
 );
 
 print(text, 'c')
-print(text, " lololol")
+print(text, " nice test bro!")
 text.color = Vec4f0(1f0, 0f0, 0f0, 1f0)
 print(text, " Muashahahaha@")
 

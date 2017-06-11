@@ -63,3 +63,11 @@ function aastep{T}(threshold1::T, threshold2::T, value::T)
         smoothstep(threshold2 - afwidth, threshold2 + afwidth, value)
     )
 end
+
+
+immutable STDCanvas
+    projection::Mat4f0
+    view::Mat4f0
+    projectionview::Mat4f0
+    resolution::Vec2f0
+end

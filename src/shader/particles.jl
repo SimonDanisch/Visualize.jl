@@ -38,16 +38,15 @@ getglowcolor(x) = x.glowcolor
 getscale(x) = x.scale
 getposition(x) = x.position
 
-vertex_main(vertex, uniforms, image) = vertex_main(vertex, uniforms)
-function vertex_main(vertex, uniforms)
+vert_particles(vertex, uniforms, image) = vert_particles(vertex, uniforms)
+function vert_particles(vertex, canvas, uniforms)
     p = getposition(vertex)
     scale = getscale(vertex)
-    geom = Vertex2Geom(
+    return Vertex2Geom(
         getuvrect(vertex),
         getcolor(vertex),
         Vec4f0(p[1], p[2], scale[1], scale[2])
     )
-    return geom
 end
 
 
@@ -61,8 +60,11 @@ function emit_vertex(emit!, vertex, uv, arg, pos, uniforms)
     return
 end
 
-geometry_main(emit!, vertex_out, uniforms, image) = geometry_main(emit!, vertex_out, uniforms)
-function geometry_main(emit!, vertex_out, uniforms)
+function geom_particles(emit!, vertex_out, uniforms, image)
+    geom_particles(emit!, vertex_out, uniforms)
+    return
+end
+function geom_particles(emit!, vertex_out, uniforms)
     # get arguments from first face
     # (there is only one in there anywas, since primitive type is point)
     # (position, vertex_out)
@@ -87,18 +89,19 @@ function geometry_main(emit!, vertex_out, uniforms)
 end
 
 
-function fragment_main(geom_out, uniforms, image)
-    uv = geom_out[1]; color = geom_out[2]
-    signed_distance = -image[uv][1]
-    inside = aastep(0f0, signed_distance)
-    bg = Vec4f0(1f0, 1f0, 1f0, 0f0)
-    (mix(bg, color, inside),)
+function sdf2color(dist, bg_color, color)
+    inside = aastep(0f0, dist)
+    mix(bg_color, color, inside)
 end
-
-function fragment_main(geom_out, uniforms)
+function frag_particles(geom_out, uniforms, image)
     uv = geom_out[1]; color = geom_out[2]
-    signed_distance = uniforms.distance_func(uv)
-    inside = aastep(0f0, signed_distance)
-    bg = Vec4f0(0f0, 0f0, 0f0, 0f0)
-    (mix(bg, color, inside),)
+    dist = -image[uv][1]
+    bg_color = Vec4f0(0f0, 0f0, 0f0, 0f0)
+    (sdf2color(dist, bg_color, color), )
+end
+function frag_particles(geom_out, uniforms)
+    uv = geom_out[1]; color = geom_out[2]
+    dist = uniforms.distance_func(uv)
+    bg_color = Vec4f0(0f0, 0f0, 0f0, 0f0)
+    (sdf2color(dist, bg_color, color), )
 end

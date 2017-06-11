@@ -1,40 +1,25 @@
-using GeometryTypes, Visualize
-using Visualize: aastep, smoothstep
-using Visualize, GeometryTypes, ModernGL
-using Visualize: GLRasterization, TextUniforms, get_texture_atlas, Sprite2
-using Visualize.GLRasterization: show!, destroy!
+immutable LineVertex{N}
+    position::Vec{N, Float32}
+    thickness::Float32
+    color::Vec4f0
+end
 
-if !isdefined(:LineVertex)
-    immutable LineVertex{N}
-        position::Vec{N, Float32}
-        thickness::Float32
-        color::Vec4f0
-    end
+immutable LineUniforms
+    model::Mat4f0
+    thickness::Float32
+    pattern_length::Float32
+end
 
-    immutable Canvas
-        resolution::Vec2f0
-        projection::Mat4f0
-        view::Mat4f0
-        projectionview::Mat4f0
-    end
+immutable Vert2Geom
+    position::Vec4f0
+    color::Vec4f0
+    thickness::Float32
+end
 
-    immutable Uniforms
-        model::Mat4f0
-        thickness::Float32
-        pattern_length::Float32
-    end
-
-    immutable Vert2Geom
-        position::Vec4f0
-        color::Vec4f0
-        thickness::Float32
-    end
-
-    immutable Geom2Fragment
-        thickness::Float32
-        color::Vec4f0
-        uv::Vec2f0
-    end
+immutable Geom2Fragment
+    thickness::Float32
+    color::Vec4f0
+    uv::Vec2f0
 end
 to_vec4(v::Vec3f0) = return Vec4f0(v[1], v[2], v[3], 1f0)
 to_vec4(v::Vec2f0) = return Vec4f0(v[1], v[2], 0f0, 1f0)
@@ -47,6 +32,7 @@ get_color(x, uniforms) = uniforms.color
 
 get_thickness(x::LineVertex, uniforms) = x.thickness
 get_thickness(x, uniforms) = uniforms.thickness
+
 function screen_space(vertex::Vec4f0, canvas)
     return (vertex[Vec(1, 2)] / vertex[4]) .* canvas.resolution
 end
@@ -109,66 +95,4 @@ function frag_linesegments(geom_out, canvas, uniforms)
     alpha2 = aastep(-1f0, 1f0, xy[2])
     outcolor = Vec4f0(color[1], color[2], color[3], color[4] * alpha * alpha2)
     (outcolor, )
-end
-
-
-
-resolution = (1024, 1024)
-window = GLFWWindow(Area => resolution, Visualize.Debugging => true)
-for event in Visualize.NativeWindowEvents
-    add!(window, event)
-end
-show!(window)
-window[Visualize.Open] = true
-
-proj = orthographicprojection(SimpleRectangle(0, 0, resolution...), -10_000f0, 10_000f0)
-N = 32
-uniforms = Uniforms(
-    eye(Mat4f0),
-    20f0,
-    4f0,
-)
-canvas = Canvas(
-    resolution,
-    proj,
-    eye(Mat4f0),
-    proj,
-)
-
-vertices = [LineVertex(
-    Vec2f0((sin(2pi * (i / N)) , cos(2pi * (i / N)))) * 100f0 .+ 100f0,
-    20f0,
-    Vec4f0(1, i/N, 0, 1),
-) for i = 1:N]
-
-vbo = VertexArray(vertices, face_type = Face{2, OffsetInteger{1, GLint}});
-GLRasterization.gl_face_enum(vbo) == GL_LINES
-
-canvas_buff = UniformBuffer(canvas);
-uniform_buff = UniformBuffer(uniforms);
-
-draw_particles = GLRasterizer(
-    vbo, (canvas_buff, uniform_buff,),
-    vert_linesegments, frag_linesegments;
-    geometryshader = geom_linesegments,
-    primitive_in = :lines
-);
-
-glDisable(GL_DEPTH_TEST)
-glDisable(GL_CULL_FACE)
-glClearColor(0, 0, 0, 0)
-GLAbstraction.enabletransparency()
-
-
-@async begin
-    while isopen(window)
-        GLFW.PollEvents()
-        glViewport(0, 0, widths(window[Area])...)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        draw_particles(vbo, (canvas_buff, uniform_buff,))
-        GLRasterization.swapbuffers!(window)
-        sleep(0.01)
-        yield()
-    end
-    destroy!(window)
 end

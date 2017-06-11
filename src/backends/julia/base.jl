@@ -173,6 +173,12 @@ end
 broadcastmin(a, b) = min.(a, b)
 broadcastmax(a, b) = max.(a, b)
 
+
+function clip2pixel_space(position, resolution)
+    clipspace = position / position[4]
+    p = clipspace[Vec(1, 2)]
+    (((p + 1f0) / 2f0) .* (resolution - 1f0)) + 1f0
+end
 function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
         canvas, vertex_array::AbstractArray{Vert}, uniforms::Args
     )
@@ -198,9 +204,8 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
         for geom_face in geom_stage
             fdepth = map(geom_face) do vert
                 fv = first(vert)
-                clipspace = fv / fv[4]
-                position = clipspace[Vec(1, 2)]
-                (((position + 1f0) / 2f0) .* (resolution - 1f0)) + 1f0, clipspace[3]
+                p = clip2pixel_space(fv, resolution)
+                p[Vec(1, 2)], p[3]
             end
             f = map(first, fdepth)
             depths = map(last, fdepth)
@@ -223,7 +228,7 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
                         bary = w / area
                         depth = bary[1] * depths[1] + bary[2] * depths[2] + bary[3] * depths[3]
 
-                        if true#depth <= depthbuffer[yi, xi]
+                        if depth <= depthbuffer[yi, xi]
                             depthbuffer[yi, xi] = depth
                             fragment_in = interpolate(bary, vertex_out, FragNVal)
                             fragment_out = fshader(fragment_in, uniforms...)

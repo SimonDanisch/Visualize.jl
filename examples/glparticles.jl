@@ -38,12 +38,11 @@ function vertex_main(vertex, uniforms)
     p = getposition(vertex)
     scale = getscale(vertex)
 
-    geom = Vertex2Geom(
+    return Vertex2Geom(
         getuvrect(vertex),
         getcolor(vertex),
         Vec4f0(p[1], p[2], scale[1], scale[2])
     )
-    geom
 end
 
 """
@@ -118,7 +117,7 @@ draw_particles = GLRasterizer(
 )
 
 glDisable(GL_DEPTH_TEST)
-glClearColor(1,1,1,0)
+glClearColor(1, 1, 1, 0)
 GLAbstraction.enabletransparency()
 
 while isopen(w)

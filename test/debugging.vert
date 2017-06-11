@@ -5,96 +5,102 @@ struct Symbol{
     float empty; // structs can't be empty
 };
 
-// Julia name: Canvas
-struct Canvas{
-    vec2 resolution;
+// Julia name: Visualize.Vertex2Geom
+struct Vertex2Geom{
+    vec4 uvrect;
+    vec4 color;
+    vec4 rect;
+};
+
+// Julia name: Visualize.TextUniforms
+struct TextUniforms{
     mat4 projection;
-    mat4 view;
-    mat4 projectionview;
+    vec4 strokecolor;
+    vec4 glowcolor;
 };
 
-// Julia name: Uniforms
-struct Uniforms{
-    mat4 model;
-    float thickness;
-    float pattern_length;
-};
-
-// Julia name: LineVertex{2}
-struct LineVertex_2{
+// Julia name: Visualize.Sprite{2,Float32}
+struct Sprite_2_float{
     vec2 position;
-    float thickness;
+    vec2 offset;
+    vec2 scale;
+    vec4 uv;
     vec4 color;
-};
-
-// Julia name: Vert2Geom
-struct Vert2Geom{
-    vec4 position;
-    vec4 color;
-    float thickness;
 };
 
 // dependant function declarations
-float get_thickness(LineVertex_2 x, Uniforms uniforms)
-{
-    return x.thickness;
-}
-vec4 get_color(LineVertex_2 x, Uniforms uniforms)
+vec4 getcolor(Sprite_2_float x)
 {
     return x.color;
 }
-vec2 get_position(LineVertex_2 x)
+vec4 getuvrect(Sprite_2_float x)
+{
+    return x.uv;
+}
+vec2 getscale(Sprite_2_float x)
+{
+    return x.scale;
+}
+vec2 getposition(Sprite_2_float x)
 {
     return x.position;
 }
-vec4 to_vec4(vec2 v)
+Vertex2Geom vertex_main(Sprite_2_float vertex, TextUniforms uniforms)
 {
-    return vec4(v.x, v.y, 0.0, 1.0);
+    vec2 scale;
+    vec2 p;
+    p = getposition(vertex);
+    scale = getscale(vertex);
+    return Vertex2Geom(getuvrect(vertex), getcolor(vertex), vec4(p.x, p.y, scale.x, scale.y));
 }
 // vertex input:
 layout (location = 0) in vec2 vertex_position;
-layout (location = 1) in float vertex_thickness;
-layout (location = 2) in vec4 vertex_color;
+layout (location = 1) in vec2 vertex_offset;
+layout (location = 2) in vec2 vertex_scale;
+layout (location = 3) in vec4 vertex_uv;
+layout (location = 4) in vec4 vertex_color;
 // uniform inputs:
 layout (std140) uniform _gensymed_UniformArg1{
-    Canvas canvas;
+    TextUniforms uniforms;
 };
 
-layout (std140) uniform _gensymed_UniformArg2{
-    Uniforms uniforms;
-};
-
-out Vert2Geom vertex_out;
+uniform sampler2D image;
+out Vertex2Geom vertex_out;
 
 // vertex main function:
 void main()
 {
-    LineVertex_2 vertex;
-    vertex = LineVertex_2(vertex_position, vertex_thickness, vertex_color);
-    Vert2Geom geomout;
-    vec4 pos;
-    pos = to_vec4(get_position(vertex));
-    geomout = Vert2Geom(pos, get_color(vertex, uniforms), get_thickness(vertex, uniforms));
-    vertex_out = geomout;
+    Sprite_2_float vertex;
+    vertex = Sprite_2_float(vertex_position, vertex_offset, vertex_scale, vertex_uv, vertex_color);
+    vertex_out = vertex_main(vertex, uniforms);
 }
-
-
 #version 330
-layout(lines) in;
+layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
 // dependant type declarations
-// Julia name: Geom2Fragment
-struct Geom2Fragment{
-    float thickness;
+// Julia name: Visualize.Vertex2Geom
+struct Vertex2Geom{
+    vec4 uvrect;
     vec4 color;
-    vec2 uv;
+    vec4 rect;
 };
 
-// Julia name: Uniforms
-struct Uniforms{
-    mat4 model;
-    float thickness;
-    float pattern_length;
+// Julia name: Tuple{GeometryTypes.Vec{2,Float32},GeometryTypes.Vec{4,Float32}}
+struct Tuple_vec2_vec4{
+    vec2 field1;
+    vec4 field2;
+};
+
+// Julia name: Symbol
+struct Symbol{
+    float empty; // structs can't be empty
+};
+
+// Julia name: Visualize.TextUniforms
+struct TextUniforms{
+    mat4 projection;
+    vec4 strokecolor;
+    vec4 glowcolor;
 };
 
 // Julia name: Visualize.GLRasterization.#emit_placeholder
@@ -102,104 +108,61 @@ struct Visualize1GLRasterization12emit_placeholder{
     float empty; // structs can't be empty
 };
 
-// Julia name: Symbol
-struct Symbol{
-    float empty; // structs can't be empty
-};
-
-// Julia name: Vert2Geom
-struct Vert2Geom{
-    vec4 position;
-    vec4 color;
-    float thickness;
-};
-
-// Julia name: Canvas
-struct Canvas{
-    vec2 resolution;
-    mat4 projection;
-    mat4 view;
-    mat4 projectionview;
-};
-
-in Vert2Geom vertex_out[2];
-out Geom2Fragment geom_out;
+in Vertex2Geom vertex_out[1];
+out Tuple_vec2_vec4 geom_out;
 // uniform inputs:
 layout (std140) uniform _gensymed_UniformArg1{
-    Canvas canvas;
+    TextUniforms uniforms;
 };
 
-layout (std140) uniform _gensymed_UniformArg2{
-    Uniforms uniforms;
-};
-
+uniform sampler2D image;
 // dependant function declarations
-void emit_vertex2(Visualize1GLRasterization12emit_placeholder emit3, Vert2Geom[2] geom_in, Canvas canvas, Uniforms uniforms, vec2 position, vec2 uv, int index)
+void emit_vertex(Visualize1GLRasterization12emit_placeholder emit3, vec2 vertex, vec2 uv, Vertex2Geom arg, vec2 pos, TextUniforms uniforms)
 {
-    Geom2Fragment fragout;
-    vec4 outpos;
-    vec2 x;
-    vec4 inpos;
-    inpos = geom_in[index - 1].position;
-    x = (position / vec2(1024.0, 1024.0)) * inpos.w;
-    outpos = vec4(x.x, x.y, inpos.z, inpos.w);
-    fragout = Geom2Fragment(geom_in[index - 1].thickness + 2.0, geom_in[index - 1].color, uv);
-    gl_Position = outpos;
-    geom_out = fragout;
+    vec4 final_position;
+    vec4 datapoint;
+    datapoint = uniforms.projection * vec4(pos.x, pos.y, 0, 1);
+    final_position = uniforms.projection * vec4(vertex.x, vertex.y, 0, 0);
+    gl_Position = datapoint + final_position;
+    geom_out = Tuple_vec2_vec4(uv, arg.color);
     EmitVertex();
     ;
 }
-vec2 screen_space(vec4 vertex, Canvas canvas)
+void geometry_main(Visualize1GLRasterization12emit_placeholder emit3, Vertex2Geom[1] vertex_out, TextUniforms uniforms)
 {
-    return (vertex.xy / vertex.w) * canvas.resolution;
+    vec4 uv;
+    vec4 quad;
+    vec2 scale;
+    vec2 pos;
+    vec4 pos_scale;
+    Vertex2Geom arg;
+    arg = vertex_out[0];
+    pos_scale = arg.rect;
+    pos = pos_scale.xy;
+    scale = pos_scale.zw;
+    quad = vec4(0.0, 0.0, scale.x, scale.y);
+    uv = arg.uvrect;
+    emit_vertex(emit3, quad.xy, uv.xw, arg, pos, uniforms);
+    emit_vertex(emit3, quad.xw, uv.xy, arg, pos, uniforms);
+    emit_vertex(emit3, quad.zy, uv.zw, arg, pos, uniforms);
+    emit_vertex(emit3, quad.zw, uv.zy, arg, pos, uniforms);
+    ;
 }
 
 // geometry main function:
 void main()
 {
     Visualize1GLRasterization12emit_placeholder emit3;
-    float uv1;
-    float uv0;
-    float l;
-    vec2 n0;
-    vec2 v0;
-    vec2 vun0;
-    float thickness_aa1;
-    float thickness_aa0;
-    vec2 p1;
-    vec2 p0;
-    p0 = screen_space(vertex_out[0].position, canvas);
-    p1 = screen_space(vertex_out[1].position, canvas);
-    thickness_aa0 = 20.0 + 2.0;
-    thickness_aa1 = 20.0 + 2.0;
-    vun0 = p1 - p0;
-    v0 = normalize(vun0);
-    n0 = vec2(-(v0.y), v0.x);
-    l = length(p1 - p0);
-    uv0 = thickness_aa0 / 20.0;
-    uv1 = thickness_aa1 / 20.0;
-    emit_vertex2(emit3, vertex_out, canvas, uniforms, p0 + thickness_aa0 * n0, vec2(0.0, -uv0), 1);
-    emit_vertex2(emit3, vertex_out, canvas, uniforms, p0 - thickness_aa0 * n0, vec2(0.0, uv0), 1);
-    emit_vertex2(emit3, vertex_out, canvas, uniforms, p1 + thickness_aa1 * n0, vec2(l, -uv1), 2);
-    emit_vertex2(emit3, vertex_out, canvas, uniforms, p1 - thickness_aa1 * n0, vec2(l, uv1), 2);
+    geometry_main(emit3, vertex_out, uniforms);
     EndPrimitive();
-}
-
+}---------------------------
 #version 330
 // dependant type declarations
-// Julia name: Uniforms
-struct Uniforms{
-    mat4 model;
-    float thickness;
-    float pattern_length;
-};
-
-// Julia name: Canvas
-struct Canvas{
-    vec2 resolution;
+// Julia name: Visualize.TextUniforms
+struct TextUniforms{
     mat4 projection;
-    mat4 view;
-    mat4 projectionview;
+    vec4 strokecolor;
+    vec4 glowcolor;
 };
 
 // Julia name: Symbol
@@ -207,50 +170,46 @@ struct Symbol{
     float empty; // structs can't be empty
 };
 
-// Julia name: Geom2Fragment
-struct Geom2Fragment{
-    float thickness;
-    vec4 color;
-    vec2 uv;
+// Julia name: Tuple{GeometryTypes.Vec{2,Float32},GeometryTypes.Vec{4,Float32}}
+struct Tuple_vec2_vec4{
+    vec2 field1;
+    vec4 field2;
 };
 
 // dependant function declarations
-float aastep(float threshold1, float threshold2, float value)
-{
-    float afwidth;
-    afwidth = float(0.001);
-    return smoothstep(threshold1 - afwidth, threshold1 + afwidth, value) - smoothstep(threshold2 - afwidth, threshold2 + afwidth, value);
-}
 float aastep(float threshold1, float value)
 {
     return smoothstep(threshold1 - float(0.001), threshold1 + float(0.001), value);
 }
+vec4 sdf2color(float dist, vec4 bg_color, vec4 color)
+{
+    float inside;
+    inside = aastep(0.0, dist);
+    return mix(bg_color, color, inside);
+}
+vec4 getindex(sampler2D x, vec2 idx)
+{
+    return texture(x, idx);
+}
 // uniform inputs:
 layout (std140) uniform _gensymed_UniformArg1{
-    Canvas canvas;
+    TextUniforms uniforms;
 };
 
-layout (std140) uniform _gensymed_UniformArg2{
-    Uniforms uniforms;
-};
-
-in Geom2Fragment geom_out;
+uniform sampler2D image;
+in Tuple_vec2_vec4 geom_out;
 layout (location = 0) out vec4 _gensymed_color0;
 
 // fragment main function:
 void main()
 {
-    vec4 outcolor;
-    float alpha2;
-    float alpha;
-    vec2 xy;
+    vec4 bg_color;
+    float dist;
     vec4 color;
     vec2 uv;
-    uv = geom_out.uv;
-    color = geom_out.color;
-    xy = vec2(0.5, uv.y);
-    alpha = aastep(0.0, xy.x);
-    alpha2 = aastep(-1.0, 1.0, xy.y);
-    outcolor = vec4(color.x, color.y, color.z, color.w * alpha * alpha2);
-    _gensymed_color0 = vec4(1, 0, 0, 1);
+    uv = geom_out.field1;
+    color = geom_out.field2;
+    dist = -(getindex(image, uv).x);
+    bg_color = vec4(0.0, 0.0, 0.0, 0.0);
+    _gensymed_color0 = sdf2color(dist, bg_color, color);
 }
