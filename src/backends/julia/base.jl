@@ -50,10 +50,14 @@ function FixedGeomView(T, max_primitives, primitive_in, primitive_out)
     buffer = Vector{Tuple{Point4f0, T}}(max_primitives)
     # TODO implement primitive_in and out correctly
     # this is for triangle_strip and 4 max_primitives
-    if max_primitives != 4 || primitive_out != :triangle_strip
+    if max_primitives != 4 || primitive_out == :triangle_strip
         error("Not implemented for max_primitives == $max_primitives and primitive_out == $primitive_out.")
     end
-    geometry_view = view(buffer, [Face(1, 2, 3), Face(3, 2, 4)])
+    geometry_view = if primitive_in == :triangle_strip
+        view(buffer, [Face(1, 2, 3), Face(3, 2, 4)])
+    else
+        error("$primitive_in not supported. Only :triangle_strip supported right now")
+    end
     FixedGeomView(buffer, geometry_view, 1)
 end
 
@@ -179,6 +183,7 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
     gshader = r.geometryshader
     fshader = r.fragmentshader
     FragNVal = Val{FragN}()
+    fragments_drawn = 0
     for face in vertex_array
         vertex_stage = map(reverse(face)) do f
             vshader(f, uniforms...)
@@ -204,6 +209,7 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
             mini = max.(reduce(broadcastmin, f), 1f0)
             maxi = min.(reduce(broadcastmax, f), resolution)
             area = edge_function(f[1], f[2], f[3])
+            println(area)
             for y = mini[2]:maxi[2]
                 for x = mini[1]:maxi[1]
                     p = Vec(x, y)
@@ -213,7 +219,7 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
                         edge_function(f[1], f[2], p)
                     )
                     yi, xi = round(Int, y), round(Int, x)
-                    if all(w-> w >= 0f0, w) && checkbounds(Bool, framebuffers[1], yi, xi)
+                    if all(w-> w <= 0f0, w) && checkbounds(Bool, framebuffers[1], yi, xi)
                         bary = w / area
                         depth = bary[1] * depths[1] + bary[2] * depths[2] + bary[3] * depths[3]
 
@@ -224,6 +230,7 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
                             for i = eachindex(fragment_out)
                                 src_color = framebuffers[i][yi, xi]
                                 dest_color = fragment_out[i]
+                                fragments_drawn += 1
                                 framebuffers[i][yi, xi] = standard_transparency(
                                     src_color,
                                     RGBA{Float32}(dest_color[1], dest_color[2], dest_color[3], dest_color[4])
@@ -235,6 +242,7 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
             end
         end
     end
+    println("fragments drawn: ", fragments_drawn)
     return
 end
 

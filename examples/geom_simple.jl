@@ -29,4 +29,4 @@ draw = JLRasterizer(
 )
 @time draw(canvas, vertices, ())
 
-save("test.png", canvas[Framebuffer][1])
+save("test.png", canvas[Visualize.ColorBuffer][1])

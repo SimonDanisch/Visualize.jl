@@ -86,16 +86,18 @@ function openglerrorcallback(
         length::GLsizei, message::Ptr{GLchar},
         userParam::Ptr{Void}
     )
-    errormessage = """
-         ________________________________________________________________
-        |
-        | OpenGL Error!
-        | source: $(GLENUM(source).name) :: type: $(GLENUM(typ).name)
-        |  $(unsafe_string(message, length))
-        |________________________________________________________________
-    """
-    output = typ == GL_DEBUG_TYPE_ERROR ? error : info
-    output(errormessage)
+    # TODO introduce debug levels
+    if typ == GL_DEBUG_TYPE_ERROR
+        # output = typ == GL_DEBUG_TYPE_ERROR ? error : info
+        errormessage = """
+             ________________________________________________________________
+            | OpenGL Error!
+            | source: $(GLENUM(source).name) | type: $(GLENUM(typ).name)
+            |  $(unsafe_string(message, length))
+            |________________________________________________________________
+        """
+        error(errormessage)
+    end
     nothing
 end
 

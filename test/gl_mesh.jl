@@ -1,12 +1,15 @@
 using Visualize, GeometryTypes, ModernGL
 using Visualize.GLRasterization
+using Visualize: Debugging
+using Visualize.GLRasterization: swapbuffers!, destroy!
 
-window = GLFWWindow(Area => (800, 600))
+window = GLFWWindow(Area => (800, 600), Debugging => true)
 
 for event in Visualize.NativeWindowEvents
     add!(window, event)
 end
 add!(window, Mouse.Drag)
+window[Visualize.Open] = true
 
 cam = PerspectiveCamera(
     TranslationSpeed => 1f0,
@@ -51,7 +54,7 @@ catmesh = Base.view(
 )
 GLFW.ShowWindow(window[Window])
 
-vbo = VertexArray(catmesh)
+vbo = VertexArray(catmesh);
 args = (Vec3f0(1, 0, 0), cam[Projection], cam[View])
 uniforms = map(UniformBuffer, (light, shading, args))
 draw_cat = GLRasterizer(
@@ -65,21 +68,19 @@ glDepthMask(GL_TRUE)
 glDepthFunc(GL_LEQUAL)
 glDisable(GL_CULL_FACE)
 GLAbstraction.enabletransparency()
-draw_cat(vbo, uniforms)
-glUseProgram(draw_cat.program)
-glBindVertexArray(vbo.id)
 glClearColor(1,1,1,1)
+
 @async begin
-    while !GLFW.WindowShouldClose(window[Window])
+    while isopen(window)
         GLFW.PollEvents()
         glViewport(0, 0, widths(window[Area])...)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         args = (Vec3f0(1, 0, 0), cam[Projection], cam[View])
         uniforms[3][1] = args # update
-        GLRasterization.draw_vbo(vbo)
-        GLFW.SwapBuffers(window[Window])
+        draw_cat(vbo, uniforms)
+        swapbuffers!(window)
         sleep(0.001)
         yield()
     end
-    GLFW.DestroyWindow(window[Window])
+    destroy!(window)
 end

@@ -47,7 +47,7 @@ function vertex_main(vertex, uniforms)
         getcolor(vertex),
         Vec4f0(p[1], p[2], scale[1], scale[2])
     )
-    geom
+    return geom
 end
 
 
@@ -61,12 +61,12 @@ function emit_vertex(emit!, vertex, uv, arg, pos, uniforms)
     return
 end
 
-geometry_main(emit!, geom_in, uniforms, image) = geometry_main(emit!, geom_in, uniforms)
-function geometry_main(emit!, geom_in, uniforms)
+geometry_main(emit!, vertex_out, uniforms, image) = geometry_main(emit!, vertex_out, uniforms)
+function geometry_main(emit!, vertex_out, uniforms)
     # get arguments from first face
     # (there is only one in there anywas, since primitive type is point)
     # (position, vertex_out)
-    arg = geom_in[1]
+    arg = vertex_out[1]
     # emit quad as triangle strip
     # v3. ____ . v4
     #    |\   |

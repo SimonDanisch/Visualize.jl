@@ -9,9 +9,12 @@ type VertexArray{Vertex, Face, IT}
     end
 end
 
-gl_face_enum{V, IT}(::VertexArray{V, GLTriangle, IT}) = GL_TRIANGLES
 gl_face_enum{V, IT, T <: Integer}(::VertexArray{V, T, IT}) = GL_POINTS
-gl_face_enum{V, IT}(::VertexArray{V, Face{1, OffsetInteger{1, GLint}}, IT}) = GL_POINTS
+gl_face_enum{V, IT, I}(::VertexArray{V, Face{1, I}, IT}) = GL_POINTS
+gl_face_enum{V, IT, I}(::VertexArray{V, Face{2, I}, IT}) = GL_LINES
+gl_face_enum{V, IT, I}(::VertexArray{V, Face{3, I}, IT}) = GL_TRIANGLES
+
+# get_facetype(x::SubArray) = get_facetype(x.indices[1])
 
 function draw_vbo{V, T, IT <: GLBuffer}(vbo::VertexArray{V, T, IT})
     glDrawElements(
@@ -124,20 +127,28 @@ end
 const GLSLScalarTypes = Union{Float32, Int32, UInt32}
 Base.eltype{T, N}(::UniformBuffer{T, N}) = T
 
-function glsl_sizeof(T)
-    T <: Bool && return sizeof(Int32)
-    T <: GLSLScalarTypes && return sizeof(T)
-    # TODO Propper translation and sizes!
-    T <: Function && return sizeof(Vec4f0) # sizeof(EmptyStruct) padded to Vec4f0
+
+function glsl_alignement_size(T)
+    T <: Bool && return sizeof(Int32), sizeof(Int32)
+    N = sizeof(T)
+    T <: GLSLScalarTypes && return N, N
+    T <: Function && return sizeof(Vec4f0), sizeof(Vec4f0) # sizeof(EmptyStruct) padded to Vec4f0
     ET = eltype(T)
-    if T <: Mat
-        return sizeof(ET) * 4 * size(T, 2)
+    if T <: Mat4f0
+        a, s = glsl_alignement_size(Vec4f0)
+        return a, 4s
     end
-    # must be vector like #TODO assert without restricting things too much
-    N = length(T)
-    @assert N <= 4
-    N <= 2 && return 2 * sizeof(ET)
-    return 4 * sizeof(ET)
+    N = sizeof(ET)
+    if T <: Vec2f0
+        return 2N, 2N
+    end
+    if T <: Vec4f0
+        return 4N, 4N
+    end
+    if T <: Vec3f0
+        return 4N, 3N
+    end
+    error("Struct $T not supported yet. Please help by implementing all rules from https://khronos.org/registry/OpenGL/specs/gl/glspec45.core.pdf#page=159")
 end
 
 function std140_offsets{T}(::Type{T})
@@ -147,18 +158,14 @@ function std140_offsets{T}(::Type{T})
         (0,)
     else
         offset = 0
-        last_padd = 0
         offsets = ntuple(nfields(T)) do i
             ft = fieldtype(T, i)
-            sz = glsl_sizeof(ft)
-            of = offset
-            if last_padd == sz # fits in previous padd
-                of -= sz
-                #offset += sz
-            else
-                offset += sz
+            alignement, sz = glsl_alignement_size(ft)
+            if offset % alignement != 0
+                offset = (div(offset, alignement) + 1) * alignement
             end
-            last_padd = sz - sizeof(ft)
+            of = offset
+            offset += sz
             of
         end
         elementsize = offset
