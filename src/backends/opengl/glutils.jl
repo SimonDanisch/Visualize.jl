@@ -244,8 +244,8 @@ function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Inte
 end
 extract_val(::Val{X}) where X = X
 function Base.setindex!{T <: Composable, N, TF}(x::UniformBuffer{T, N}, val::TF, field::Type{<: Field})
-    index = extract_val(FieldTraits.fieldindex(T, field)[1])
-    if index == 0
+    index = extract_val(FieldTraits.fieldindex(T, field))
+    if index === 0
         throw(BoundsError(x, field))
     end
     val_conv = convert(fieldtype(T, index), val)

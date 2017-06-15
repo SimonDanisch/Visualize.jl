@@ -295,9 +295,6 @@ function ispressed(events::Composable, button)
 end
 
 
-Base.isopen(x::AbstractWindow) = x[Open]
-
-
 type TimedAction
     action
     duration::Float64

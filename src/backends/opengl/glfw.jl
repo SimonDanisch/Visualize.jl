@@ -343,7 +343,6 @@ end
 
 
 function glwindow(args...)
-    @show isa(args, FieldTraits.ComposableLike)
     window = GLFWWindow(args)
     for event in NativeWindowEvents
         add!(window, event)

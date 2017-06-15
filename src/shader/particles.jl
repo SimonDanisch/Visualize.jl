@@ -1,7 +1,3 @@
-function aastep{T}(threshold1::T, value)
-    smoothstep(threshold1 - T(0.001), threshold1 + T(0.001), value)
-end
-
 circle{T}(uv::Vec{2, T}) = T(0.5) - norm(uv)
 
 type Uniforms{F}
@@ -19,8 +15,8 @@ end
 
 
 
-vert_particles(vertex, uniforms, image) = vert_particles(vertex, uniforms)
-function vert_particles(vertex, canvas, uniforms)
+vert_particles(vertex, scene, uniforms, image) = vert_particles(vertex, scene, uniforms)
+function vert_particles(vertex, scene, uniforms)
     p = getposition(vertex)
     scale = getscale(vertex)
     return Vertex2Geom(
