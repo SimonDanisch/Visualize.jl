@@ -39,3 +39,25 @@ function frag_mesh(vertex_out::Vert2Frag, canvas, light, shading, uniforms)
     c = uniforms.shadingfunction(V, N, L, color[Vec(1, 2, 3)], shading, light)
     (Vec4f0(c[1], c[2], c[3], color[4]),)
 end
+
+
+@composed type Mesh
+    <: MeshUniforms
+    Vertices
+    Light
+    Shading
+end
+
+function Drawable(window::AbstractWindow, mesh::Mesh)
+    shading = mesh[Shading]
+    # Create a functor
+    vertices = mesh[Vertices]
+
+    uniforms = (window[Scene], window[Light], shading, MeshUniforms(mesh))
+
+    rasterizer(
+        window,
+        vertices, uniforms,
+        vert_mesh, Visualize.frag_mesh
+    )
+end

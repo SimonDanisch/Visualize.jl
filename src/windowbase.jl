@@ -29,12 +29,41 @@ function default(::Type{ColorBuffer}, canvas::Partial{<: AbstractCanvas})
     (zeros(RGBA{Float32}, w, h), )
 end
 
+
+@field Ambient = Vec3f0(0.1)
+@field Diffuse = Vec3f0(0.0)
+@field DiffusePower = 1f0
+@field Specular = Vec3f0(0.3)
+@field SpecularPower = 10f0
+
+
+@composed type Light
+    Position::Vec3f0
+    Ambient::Vec3f0
+    Diffuse::Vec3f0
+    DiffusePower::Float32
+    Specular::Vec3f0
+    SpecularPower::Float32
+end
+
 @composed type Window <: AbstractWindow
     <: WindowEvents
     NativeWindow
     Camera
     Renderlist
     Scene
+    Color
+    Light # TODO Move into Scene, but can't since struct of structs isn't supported very well yet
+end
+function default(::Type{Scene}, p::Partial{<: AbstractWindow})
+    cam = get!(p, Camera)
+    scene = SceneUniforms(cam)
+    for field in FieldTraits.Fields(scene)
+        if haskey(cam, field)
+            FieldTraits.link!(field, cam => scene)
+        end
+    end
+    return scene
 end
 
 Base.isopen(window::AbstractWindow) = window[Open]
@@ -70,5 +99,8 @@ function destroy!(window::AbstractWindow)
     error("Not implemented for $(typeof(window))")
 end
 function swapbuffers!(window::AbstractWindow)
+    error("Not implemented for $(typeof(window))")
+end
+function renderloop(window::AbstractWindow)
     error("Not implemented for $(typeof(window))")
 end

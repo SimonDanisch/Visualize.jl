@@ -3,6 +3,7 @@ module JLRasterization
 using Colors, ColorVectorSpace, StaticArrays
 using GeometryTypes, Interpolations
 using ..Visualize: DepthBuffer, ColorBuffer, Area, Scene, AbstractWindow, Window, Canvas, JLCanvas, AbstractCanvas
+import ..Visualize: rasterizer
 
 using FieldTraits
 using FieldTraits: ComposableLike, @composed, Partial
@@ -109,12 +110,13 @@ arglength{T <: Tuple}(::Type{T}) = length(T.parameters)
 arglength{T <: AbstractArray}(::Type{T}) = 1
 arglength{T}(::Type{T}) = nfields(T)
 
-function JLRasterizer(
+
+function rasterizer(
+        window::AbstractWindow,
         vertexarray::AbstractArray,
         uniforms::Tuple,
-        vertexshader,
-        fragmentshader;
-
+        vertexshader::Function,
+        fragmentshader::Function;
         geometryshader = nothing,
         max_primitives = 4,
         primitive_in = :points,
@@ -138,13 +140,14 @@ function JLRasterizer(
         end
     end
 
-    return JLRasterizer{eltype(vertexarray), typeof(uniforms), fragment_in_ndim}(
+    raster = JLRasterizer{eltype(vertexarray), typeof(uniforms), fragment_in_ndim}(
         vertexshader,
         fragmentshader,
         geometryshader,
         geometry_view,
         emit
     )
+    raster, (vertexarray, uniforms)
 end
 
 
@@ -213,7 +216,6 @@ function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
             mini = max.(reduce(broadcastmin, f), 1f0)
             maxi = min.(reduce(broadcastmax, f), resolution)
             area = edge_function(f[1], f[2], f[3])
-            println(area)
             for y = mini[2]:maxi[2]
                 for x = mini[1]:maxi[1]
                     p = Vec(x, y)

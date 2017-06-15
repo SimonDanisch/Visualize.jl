@@ -5,6 +5,22 @@ function Drawable(window::WT, primitive::PT) where {WT, PT}
     error("Can't draw $PT with window type: $WT")
 end
 
+"""
+Creates a rasterizer clojure for a certain window type
+"""
+function rasterizer{WT}(
+        window::WT,
+        vertexarray::AbstractArray,
+        uniforms::Tuple,
+        vertexshader::Function,
+        fragmentshader::Function;
+        geometryshader = nothing,
+        max_primitives = 4,
+        primitive_in = :points,
+        primitive_out = :triangle_strip,
+    )
+    error("No rasterizer available for window type: $WT")
+end
 
 "Enables debugging information for a composable"
 @field Debugging = false
@@ -76,7 +92,7 @@ end
     BoundingBox
 end
 
-@field Color = Vec4f0(1f0, 0f0, 0f0, 1f0)
+@field Color = Vec4f0(1f0, 1f0, 1f0, 1f0)
 
 """
 Thickness e.g. of a line or stroke.

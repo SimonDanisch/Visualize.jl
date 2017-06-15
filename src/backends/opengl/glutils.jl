@@ -8,11 +8,18 @@ type VertexArray{Vertex, Face, IT}
         new{Vertex, Face, IT}(id, bufferlength, buffers, indices, GLAbstraction.current_context())
     end
 end
+# TODO
+Base.convert(::Type{VertexArray}, x) = VertexArray(x)
+Base.convert(::Type{VertexArray}, x::VertexArray) = x
 
 gl_face_enum{V, IT, T <: Integer}(::VertexArray{V, T, IT}) = GL_POINTS
 gl_face_enum{V, IT, I}(::VertexArray{V, Face{1, I}, IT}) = GL_POINTS
 gl_face_enum{V, IT, I}(::VertexArray{V, Face{2, I}, IT}) = GL_LINES
 gl_face_enum{V, IT, I}(::VertexArray{V, Face{3, I}, IT}) = GL_TRIANGLES
+
+gl_face_type(::Type{<: NTuple{2, <: AbstractVertex}}) = Face{2, Int}
+gl_face_type(::Type) = Face{1, Int} # Default to Point
+gl_face_type(::Type{T}) where T <: Face = T
 
 # get_facetype(x::SubArray) = get_facetype(x.indices[1])
 
@@ -31,11 +38,11 @@ Base.eltype{T, IT, N}(::VertexArray{T, IT, N}) = T
 Base.length(x::VertexArray) = x.length
 
 
-function VertexArray(buffer::AbstractArray, attrib_location = 0; face_type = GLTriangle)
+function VertexArray{T}(buffer::AbstractArray{T}, attrib_location = 0; face_type = gl_face_type(T))
     VertexArray(GLBuffer(buffer), face_type, attrib_location)
 end
 function VertexArray{T, AT <: AbstractArray, IT <: AbstractArray}(
-        view::SubArray{T, 1, AT, Tuple{IT}, false}, attrib_location = 0
+        view::SubArray{T, 1, AT, Tuple{IT}, false}, attrib_location = 0; face_type = nothing # TODO figure out better ways then ignoring face type
     )
     indexes = view.indexes[1]
     buffer = view.parent
@@ -187,7 +194,8 @@ function UniformBuffer{T}(::Type{T}, max_batch_size = 1024, mode = GL_STATIC_DRA
     )
     UniformBuffer(buffer, offsets, elementsize, 0)
 end
-
+Base.convert(::Type{UniformBuffer}, x) = UniformBuffer(x)
+Base.convert(::Type{UniformBuffer}, x::UniformBuffer) = x
 """
     Creates an Uniform buffer with the contents of `data`
 """

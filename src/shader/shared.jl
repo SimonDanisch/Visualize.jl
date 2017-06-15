@@ -1,19 +1,12 @@
 ####################################
 # Lighting
 
-immutable Light{T}
-    position::Vec{3, T}
-    ambient::Vec{3, T}
-    diffuse::Vec{3, T}
-    diffuse_power::T
-    specular::Vec{3, T}
-    specular_power::T
-end
+@field Shininess = 16f0
 
-immutable Shading{T}
-    ambient::Vec{3, T}
-    specular::Vec{3, T}
-    shininess::T
+@composed type Shading
+    Ambient::Vec3f0
+    Specular::Vec3f0
+    Shininess::Float32
 end
 
 @composed type SceneUniforms

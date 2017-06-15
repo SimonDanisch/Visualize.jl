@@ -70,9 +70,12 @@ using .JLRasterization
 
 export orthographicprojection, perspectiveprojection, lookat
 export normalmesh, uvmesh, JLCanvas, JLRasterizer, Area, Framebuffer
-export add!, PerspectiveCamera, TranslationSpeed, LookAt, EyePosition
+export add!, TranslationSpeed, LookAt, EyePosition, ProjectionView, EyePosition
 export RotationSpeed, Translation, Rotation, Keyboard, WindowEvents, Window
 export Mouse, Pan, View, Projection, IRect, Sampler, isopen
+export Resolution, Open, Visible, renderloop, Light, Shading
+export glwindow, ShadingFunction, Mesh, Vertices, visualize
+export Model, Color, Position, LineVertex, LineSegments, Camera, BasicCamera, PerspectiveCamera
 
 
 end # module

@@ -11,6 +11,9 @@ abstract type AbstractCairoWindow <: AbstractWindow end
     <: Window
     Canvas
 end
+
+
+
 function default(::Type{Canvas}, window::Partial{CairoWindow})
     CairoCanvas(window.val)
 end
@@ -28,35 +31,46 @@ end
 
 function default(::Type{CairoContext}, window::Partial{CairoCanvas})
     surf = get!(window, CairoSurface)
+    println("Ima creatin da context")
     Cairo.CairoContext(surf)
 end
 
 function default(::Type{CairoSurface}, window::Partial{CairoCanvas})
+    println("Ima make a cairo surface")
     resolution = get!(window, Resolution)
     Cairo.CairoRGBSurface(resolution...)
 end
 
 
-function emit_line_vertex(cr, v)
-    vert = Visualize.vert_linesegments(v, canvas, uniforms)
-    pos = clip2pixel_space(vert.position, canvas.resolution)
-    set_line_width(cr, vert.thickness)
-    set_source_rgba(cr, vert.color...)
+function emit_line_vertex(cr, v, scene, uniforms)
+    vert = vert_linesegments(v, scene, uniforms)
+    pos = clip2pixel_space(vert.position, scene.resolution)
+    Cairo.set_line_width(cr, vert.thickness)
+    Cairo.set_source_rgba(cr, vert.color...)
     pos
 end
 
-function emit_linesegment(cr, v1, v2)
-    pos = emit_line_vertex(cr, v1)
-    move_to(cr, pos...)
-    pos = emit_line_vertex(cr, v2)
-    line_to(cr, pos...)
-    stroke(cr)
+function emit_linesegment(cr, v1, v2, scene, uniforms)
+    pos = emit_line_vertex(cr, v1, scene, uniforms)
+    Cairo.move_to(cr, pos[1], pos[2])
+    pos = emit_line_vertex(cr, v2, scene, uniforms)
+    Cairo.line_to(cr, pos[1], pos[2])
 end
 
-function draw_line_segments(cr, vbo, canvas, uniforms)
-    for (a, b) in vbo
-        emit_linesegment(cr, a, b)
+function Drawable(window::AbstractCairoWindow, primitive::LineSegments)
+    cr = window[Canvas][CairoContext]
+    verts = primitive[Vertices]
+    vbo = reinterpret(NTuple{2, eltype(verts)}, verts)
+    uniforms = LineAttributes(primitive)
+    args = (window[Scene], uniforms)
+    drawable = function draw_line_segments(vbo, scene_unifoms)
+        scene, uniforms = scene_unifoms
+        for (a, b) in vbo
+            emit_linesegment(cr, a, b, scene, uniforms)
+            Cairo.stroke(cr)
+        end
     end
+    drawable, (vbo, args)
 end
 
 # immutable Sprite{N, T} <: Particle
@@ -79,6 +93,23 @@ function draw_text(cr, text, canvas, uniforms)
         set_font_size(cr, vert.scale[1])
         show_text(cr, string(c))
     end
+end
+
+function draw_window!(window::AbstractCairoWindow)
+    canvas = window[Canvas]
+    cr = canvas[CairoContext]
+    Cairo.save(cr)
+    Cairo.set_source_rgba(cr, get(window, Color)...)    # light gray
+    Cairo.rectangle(cr, 0.0, 0.0, get(window, Visualize.Resolution)...) # background
+    Cairo.fill(cr)
+    Cairo.restore(cr)
+    Cairo.reset_clip(cr)
+    for (prim, (drawable, args)) in window[Visualize.Renderlist]
+        Cairo.save(cr)
+        drawable(args...)
+        Cairo.restore(cr)
+    end
+    return
 end
 
 #

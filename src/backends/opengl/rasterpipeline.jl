@@ -26,22 +26,51 @@ function (p::GLRasterizer{Vertex, N, Args}){Vertex, N, Args}(vertexarray::Vertex
     glBindVertexArray(0)
 end
 
-function GLRasterizer{T <: Tuple}(
-        vertexarray, uniforms::T,
-        vertex_main, fragment_main;
-        # geometry shader is optional, so it's supplied via kw_args
+function rasterizer{T}(
+        window::AbstractGLWindow,
+        vertexarray::AbstractArray{T},
+        uniforms::Tuple,
+        vertexshader::Function,
+        fragmentshader::Function;
+        kw_args...
+    )
+    # TODO remove this hack. This is needed, because in the Julia backend we need th vbo
+    # to contain tuples, while in opengl we need it to contain singular elements and communicate
+    # the tuple nature via the face type
+    vertexarray, ft = if T <: NTuple{N, <: AbstractVertex} where N
+        println(" lol ", T)
+        reinterpret(eltype(T), vertexarray), Face{nfields(T), Int}
+    else
+        vertexarray, gl_face_type(T)
+    end
+    println(typeof(vertexarray), " ", ft)
+    vbo = VertexArray(vertexarray, face_type = ft)
+    gl_uniforms = map(x-> convert(UniformBuffer, x), uniforms)
+    rasterizer(
+        window,
+        vbo, gl_uniforms,
+        vertexshader, fragmentshader;
+        kw_args...
+    )
+end
+function rasterizer(
+        window::AbstractGLWindow,
+        vertexarray::VertexArray,
+        uniforms::T,
+        vertexshader::Function,
+        fragmentshader::Function;
         geometryshader = nothing,
         max_primitives = 4,
         primitive_in = :points,
-        primitive_out = :triangle_strip
-    )
+        primitive_out = :triangle_strip,
+    ) where T <: Tuple{Vararg{X where X <: UniformBuffer}}
     shaders = Shader[]
 
     uniform_types = map(glsl_type, uniforms)
     vertex_type = eltype(vertexarray)
 
     argtypes = (vertex_type, uniform_types...)
-    vsource, vertexout = emit_vertex_shader(vertex_main, argtypes)
+    vsource, vertexout = emit_vertex_shader(vertexshader, argtypes)
     vshader = compile_shader(vsource, GL_VERTEX_SHADER, :particle_vert)
     write(STDOUT, vsource)
     push!(shaders, vshader)
@@ -62,11 +91,10 @@ function GLRasterizer{T <: Tuple}(
     end
 
     argtypes = (fragment_in, uniform_types...)
-    fsource, fragout = emit_fragment_shader(fragment_main, argtypes)
+    fsource, fragout = emit_fragment_shader(fragmentshader, argtypes)
     fshader = compile_shader(fsource, GL_FRAGMENT_SHADER, :particle_frag)
     push!(shaders, fshader)
     write(STDOUT, fsource)
-    println()
     program = compile_program(shaders...)
     N = length(uniform_types)
     block_idx = 0
@@ -80,9 +108,10 @@ function GLRasterizer{T <: Tuple}(
             idx
         end
     end
-    GLRasterizer{vertex_type, N, T}(
+    raster = GLRasterizer{vertex_type, N, T}(
         program, uniform_locations
     )
+    raster, (vertexarray, uniforms)
 end
 
 export GLRasterizer

@@ -4,9 +4,7 @@ using FileIO, GeometryTypes, Colors
 using Visualize: normalmesh, Light, Shading, MeshUniforms, Camera
 
 x = CairoWindow()
-canvas = x[Visualize.Canvas]
-cr = canvas[Visualize.CairoContext]
-canvas[DepthBuffer]
+
 
 function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
         window::AbstractCairoWindow, vertex_array::AbstractArray{Vert}, uniforms::Args
