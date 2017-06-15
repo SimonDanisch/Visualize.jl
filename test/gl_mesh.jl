@@ -9,7 +9,6 @@ catmesh = Base.view(
 )
 mesh = Mesh(Vertices => catmesh)
 
-
 draw_cat = visualize(window, mesh)
-
-@async renderloop(window)
+Profile.clear()
+@profile renderloop(window)

@@ -38,12 +38,10 @@ function rasterizer{T}(
     # to contain tuples, while in opengl we need it to contain singular elements and communicate
     # the tuple nature via the face type
     vertexarray, ft = if T <: NTuple{N, <: AbstractVertex} where N
-        println(" lol ", T)
         reinterpret(eltype(T), vertexarray), Face{nfields(T), Int}
     else
         vertexarray, gl_face_type(T)
     end
-    println(typeof(vertexarray), " ", ft)
     vbo = VertexArray(vertexarray, face_type = ft)
     gl_uniforms = map(x-> convert(UniformBuffer, x), uniforms)
     rasterizer(

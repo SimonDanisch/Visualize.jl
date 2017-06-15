@@ -290,10 +290,13 @@ swapbuffers!(window::GLFWWindow) = GLFW.SwapBuffers(window[NativeWindow])
 
 function renderloop(window::GLFWWindow)
     try
-        make_context_current(window[NativeWindow])
+        nativew = window[NativeWindow]
+        make_context_current(nativew)
         GLAbstraction.enabletransparency()
+        glEnable(GL_DEPTH_TEST)
+        glDepthFunc(GL_LEQUAL)
         glClearColor(window[Visualize.Color]...)
-        while isopen(window)
+        while isopen(window) && !(nativew.handle == C_NULL)
             tstart = time_ns()
             GLFW.PollEvents()
             poll_actions()
