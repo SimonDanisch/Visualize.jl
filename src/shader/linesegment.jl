@@ -1,13 +1,12 @@
-immutable LineVertex{N}
-    position::Vec{N, Float32}
-    thickness::Float32
-    color::Vec4f0
+@composed type LineAttributes
+    Model::Mat4f0
+    Color::Vec4f0
+    Thickness::Float32
 end
 
-immutable LineUniforms
-    model::Mat4f0
-    thickness::Float32
-    pattern_length::Float32
+@composed type LineSegments
+    Vertices::AbstractArray{<: AbstractLineVertex}
+    <: LineAttributes
 end
 
 immutable Vert2Geom
@@ -22,33 +21,23 @@ immutable Geom2Fragment
     uv::Vec2f0
 end
 
-to_vec4(v::Vec3f0) = return Vec4f0(v[1], v[2], v[3], 1f0)
-to_vec4(v::Vec2f0) = return Vec4f0(v[1], v[2], 0f0, 1f0)
 
-get_position(x::Vec4f0) = x
-get_position(x::LineVertex) = x.position
-
-get_color(x::LineVertex, uniforms) = x.color
-get_color(x, uniforms) = uniforms.color
-
-get_thickness(x::LineVertex, uniforms) = x.thickness
-get_thickness(x, uniforms) = uniforms.thickness
 
 function screen_space(vertex::Vec4f0, canvas)
     return (vertex[Vec(1, 2)] / vertex[4]) .* canvas.resolution
 end
 
 function vert_linesegments(vertex, canvas, uniforms)
-    # m =  * uniforms.model
+    m = canvas.projectionview * uniforms.model
     geomout = Vert2Geom(
-        canvas.projection * to_vec4(get_position(vertex)),
-        get_color(vertex, uniforms),
-        get_thickness(vertex, uniforms)
+        m * to_vec4(getposition(vertex)),
+        getcolor(vertex, uniforms),
+        getthickness(vertex, uniforms)
     )
     return geomout
 end
 
-function emit_vertex2(emit!, geom_in, canvas, uniforms, position::Vec2f0, uv::Vec2f0, index)
+function emit_line_vertex(emit!, geom_in, canvas, uniforms, position::Vec2f0, uv::Vec2f0, index)
     inpos = geom_in[index].position
     x = (position ./ canvas.resolution) * inpos[4]
     outpos = Vec4f0(x[1], x[2], inpos[3], inpos[4])
@@ -81,10 +70,10 @@ function geom_linesegments(emit!, vertex_out, canvas, uniforms)
 
     uv0 = thickness_aa0 / thickness0
     uv1 = thickness_aa1 / thickness_aa1
-    emit_vertex2(emit!, vertex_out, canvas, uniforms, p0 + thickness_aa0 * n0, Vec2f0(0f0, -uv0), 1)
-    emit_vertex2(emit!, vertex_out, canvas, uniforms, p0 - thickness_aa0 * n0, Vec2f0(0f0, uv0), 1)
-    emit_vertex2(emit!, vertex_out, canvas, uniforms, p1 + thickness_aa1 * n0, Vec2f0(l, -uv1), 2)
-    emit_vertex2(emit!, vertex_out, canvas, uniforms, p1 - thickness_aa1 * n0, Vec2f0(l, uv1), 2)
+    emit_line_vertex(emit!, vertex_out, canvas, uniforms, p0 + thickness_aa0 * n0, Vec2f0(0f0, -uv0), 1)
+    emit_line_vertex(emit!, vertex_out, canvas, uniforms, p0 - thickness_aa0 * n0, Vec2f0(0f0, uv0), 1)
+    emit_line_vertex(emit!, vertex_out, canvas, uniforms, p1 + thickness_aa1 * n0, Vec2f0(l, -uv1), 2)
+    emit_line_vertex(emit!, vertex_out, canvas, uniforms, p1 - thickness_aa1 * n0, Vec2f0(l, uv1), 2)
     return
 end
 
@@ -98,12 +87,19 @@ function frag_linesegments(geom_out, canvas, uniforms)
     (outcolor, )
 end
 
-@field DistanceFunction = circle
-@field Thickness = 3f0
 
-@composedtype GLLineSegments
+broadcast_conv(x::Vector) = x
+broadcast_conv(x::Number) = x
+broadcast_conv(x::StaticVector) = StaticArrays.Scalar(x)
 
-    DistanceFunction
-    Thickness
-    Color
+function default(::Type{Vertices}, p::Partial{LineSegments})
+    positions = get!(p, Position)::Vector{<: StaticVector}
+    #(isa(positions, Vector) && eltype(positions) <: SVector) || error("Must be vector of static vectors")
+    color = get!(p, Color)::Union{<: StaticVector, Vector{<: StaticVector,}}
+    thickness = get!(p, Thickness)::Union{<: AbstractFloat, Vector{<: AbstractFloat,}}
+    args = broadcast_conv.((positions, thickness, color))
+    # TODO sort args into uniforms (if scalar) or vertex array (if array)
+    # A bit tricky, since that means we need to figure out vertex & uniform type in a semi
+    # dynamic way
+    LineVertex.(args...)
 end

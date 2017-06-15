@@ -16,13 +16,19 @@ using FieldTraits: ReactiveComposable, Partial
 import FieldTraits: on, default
 
 using Visualize: WindowEvents, Area, Window, Mouse, Keyboard, Visible, Focused
-using Visualize: Debugging, Name, AbstractWindow, DroppedFiles, Open
-import Visualize: add!, IRect
+using Visualize: Debugging, Name, AbstractWindow, DroppedFiles, Renderlist, Open
+using Visualize: Projection, NativeWindow, ProjectionView, Resolution, Camera
+using Visualize: EyePosition, View, Scene, SceneUniforms, NativeWindowEvents
+using Visualize: LookAt, PerspectiveCamera, Translation, Rotation, Pan, Zoom, poll_actions
+
+import Visualize: add!, IRect, show!, destroy!, swapbuffers!, Drawable
 
 
 include("glutils.jl")
 include("glfw.jl")
+include("gtk.jl")
 include("rasterpipeline.jl")
+include("lines.jl")
 
 export UniformBuffer, VertexArray, GLFWWindow, GLRasterizer
 

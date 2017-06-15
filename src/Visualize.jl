@@ -1,6 +1,7 @@
 __precompile__(false)
 module Visualize
 
+using Iterators
 using Compat, FileIO, FieldTraits
 
 using FieldTraits: @reactivecomposed, @field, @composed, @needs
@@ -15,6 +16,7 @@ using Interpolations
 import GLAbstraction, ColorVectorSpace
 import Transpiler: gli
 import Transpiler: mix, smoothstep
+import Transpiler.gli: dFdx, dFdy
 
 import Base: scale!
 
@@ -59,7 +61,7 @@ include("backends/julia/base.jl")
 include("backends/cairo/base.jl")
 include("backends/webgl/base.jl")
 include("backends/opengl/base.jl")
-
+include("visualize.jl")
 
 
 

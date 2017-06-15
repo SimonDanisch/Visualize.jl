@@ -17,33 +17,14 @@ type TextUniforms
     glowcolor::Vec4f0
 end
 
-immutable Sprite{N, T} <: Particle
-    position::Point{N, T}
-    offset::Vec{2, T}
-    scale::Vec{2, T}
-    uv::Vec{4, T}
-    color::Vec{4, T}
-end
 
-const Sprite2 = Sprite{2, Float32}
-const Sprite3 = Sprite{3, Float32}
-
-
-getuvrect(x::Vertex) = Vec4f0(-0.5f0, -0.5f0, 0.5f0, 0.5f0)
-getuvrect(x::Sprite) = x.uv
-
-getcolor(x) = x.color
-getstrokecolor(x) = x.strokecolor
-getglowcolor(x) = x.glowcolor
-getscale(x) = x.scale
-getposition(x) = x.position
 
 vert_particles(vertex, uniforms, image) = vert_particles(vertex, uniforms)
 function vert_particles(vertex, canvas, uniforms)
     p = getposition(vertex)
     scale = getscale(vertex)
     return Vertex2Geom(
-        getuvrect(vertex),
+        getuv(vertex),
         getcolor(vertex),
         Vec4f0(p[1], p[2], scale[1], scale[2])
     )

@@ -1,45 +1,47 @@
-using GeometryTypes, Visualize
-using Visualize, GeometryTypes, ModernGL
+using GeometryTypes, Visualize, ModernGL
 
-using Visualize.GLRasterization: show!, destroy!, GLRasterizer
-
-using Visualize: LineVertex, STDCanvas, LineUniforms
-using Visualize: vert_linesegments, geom_linesegments, frag_linesegments
+using Visualize.GLRasterization: GLFWWindow, GLCanvas, VertexArray, UniformBuffer, GLRasterizer
+using Visualize: show!, swapbuffers!, destroy!, add_restriction!, FRect
+using Visualize: LineVertex, LineUniforms, Resolution, Camera, ProjectionView, translationmatrix
+using Visualize: vert_linesegments, geom_linesegments, frag_linesegments, timed_action, poll_actions
 
 resolution = (1024, 1024)
-window = GLFWWindow(Area => resolution, Visualize.Debugging => true)
-for event in Visualize.NativeWindowEvents
-    add!(window, event)
+window = GLFWWindow(Resolution => resolution, Camera => Visualize.BasicCamera(), Visualize.Debugging => true)
+cam = window[Camera]
+
+FieldTraits.on(cam, Projection, View) do p, v
+    cam[Visualize.ProjectionView] = p * v
 end
+canvas_u = UniformBuffer(GLCanvas, 1, GL_DYNAMIC_DRAW);
+push!(canvas_u, GLCanvas());
+
+
+
 show!(window)
 window[Visualize.Open] = true
+cam[Area] = FRect(window[Area])
 
-proj = orthographicprojection(SimpleRectangle(0, 0, resolution...), -10_000f0, 10_000f0)
-N = 32
+N = 300
 uniforms = LineUniforms(
     eye(Mat4f0),
     20f0,
     4f0,
 )
-canvas = STDCanvas(
-    proj,
-    eye(Mat4f0),
-    proj,
-    resolution
-)
-scale = 20f0
-middle = Vec2f0(resolution) ./ 2f0
-radius = Float32(min(resolution...) ./ 2f0) - scale
+
+scale = 10f0
+res = Vec2f0(resolution)
+radius = (min(resolution...) / 2f0) - scale
 
 vertices = [LineVertex(
-    Vec2f0((sin(2pi * (i / N)) , cos(2pi * (i / N)))) * radius .+ middle,
+    (rand(Vec2f0) .* (2f0*res)) .- res,
     scale,
-    Vec4f0(1, i/N, 0, 1),
+    Vec4f0(1, i/N, 0, 0.9),
 ) for i = 1:N]
+vertices[1]
 
 vbo = VertexArray(vertices, face_type = Face{2, OffsetInteger{1, GLint}});
 
-args = map(UniformBuffer, (canvas, uniforms));
+args = (canvas_u, UniformBuffer(uniforms));
 
 draw_particles = GLRasterizer(
     vbo, args,
@@ -47,22 +49,37 @@ draw_particles = GLRasterizer(
     geometryshader = geom_linesegments,
     primitive_in = :lines
 );
+# action = timed_action() do t
+#     cam[View] = translationmatrix(Vec3f0(t * 10f0, 0, 0))
+# end
 
 glDisable(GL_DEPTH_TEST)
 glDisable(GL_CULL_FACE)
 glClearColor(0, 0, 0, 0)
 GLAbstraction.enabletransparency()
 
-
 @async begin
-    while isopen(window)
-        GLFW.PollEvents()
-        glViewport(0, 0, widths(window[Area])...)
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        draw_particles(vbo, args)
-        GLRasterization.swapbuffers!(window)
-        sleep(0.01)
-        yield()
+    try
+        while isopen(window)
+            GLFW.PollEvents()
+            poll_actions()
+            glViewport(0, 0, widths(window[Area])...)
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            draw_particles(vbo, args)
+            swapbuffers!(window)
+            sleep(0.01)
+            yield()
+        end
+    catch e
+        println(e)
+    finally
+        destroy!(window)
     end
-    destroy!(window)
 end
+
+bb = AABB(map(x-> Point2f0(x.position), vertices))
+
+action = add_restriction!(cam, window,
+    IRect(minimum(bb) - 100f0, widths(bb) + 100f0),
+    Vec(50, 50)
+)

@@ -1,3 +1,41 @@
+import Cairo
+using ..Visualize.JLRasterization: JLRasterizer
+using Colors
+
+@field CairoContext
+@field CairoSurface
+
+abstract type AbstractCairoWindow <: AbstractWindow end
+
+@composed type CairoWindow <: AbstractCairoWindow
+    <: Window
+    Canvas
+end
+function default(::Type{Canvas}, window::Partial{CairoWindow})
+    CairoCanvas(window.val)
+end
+
+@composed type CairoCanvas <: AbstractCanvas
+    <: JLCanvas
+    CairoSurface
+    CairoContext
+end
+
+function default(::Type{ColorBuffer}, canvas::Partial{CairoCanvas})
+    resolution = get!(canvas, Resolution)
+    (zeros(ARGB32, resolution...), )
+end
+
+function default(::Type{CairoContext}, window::Partial{CairoCanvas})
+    surf = get!(window, CairoSurface)
+    Cairo.CairoContext(surf)
+end
+
+function default(::Type{CairoSurface}, window::Partial{CairoCanvas})
+    resolution = get!(window, Resolution)
+    Cairo.CairoRGBSurface(resolution...)
+end
+
 
 function emit_line_vertex(cr, v)
     vert = Visualize.vert_linesegments(v, canvas, uniforms)
@@ -42,3 +80,103 @@ function draw_text(cr, text, canvas, uniforms)
         show_text(cr, string(c))
     end
 end
+
+#
+# function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
+#         canvas::AbstractCairoWindow, vertex_array::AbstractArray{Vert}, uniforms::Args
+#     )
+#     framebuffers = canvas[ColorBuffer]; depthbuffer = canvas[DepthBuffer]
+#     resolution = Vec2f0(size(framebuffers[1]))
+#     # hoisting out functions... Seems to help inference a bit. Or not?
+#     vshader = r.vertexshader
+#     gshader = r.geometryshader
+#     fshader = r.fragmentshader
+#     FragNVal = Val{FragN}()
+#     fragments_drawn = 0
+#     clip_triangles = NTuple{3, Vec2f0}[]
+#     for face in vertex_array
+#         vertex_stage = map(reverse(face)) do f
+#             vshader(f, uniforms...)
+#         end
+#         geom_stage = if isa(r.geometryshader, Void)
+#             (vertex_stage,)
+#         else
+#             reset!(r.geometry_view)
+#             gshader(r.emit, vertex_stage, uniforms...)
+#             r.geometry_view.view
+#         end
+#         for geom_face in geom_stage
+#             fdepth = map(geom_face) do vert
+#                 fv = first(vert)
+#                 p = clip2pixel_space(fv, resolution)
+#                 p[Vec(1, 2)], p[3]
+#             end
+#             f = map(first, fdepth)
+#             push!(clip_triangles, f)
+#             depths = map(last, fdepth)
+#             vertex_out = map(last, geom_face)
+#             # Bounding rectangle
+#             mini = max.(reduce(broadcastmin, f), 1f0)
+#             maxi = min.(reduce(broadcastmax, f), resolution)
+#             area = edge_function(f[1], f[2], f[3])
+#             for y = mini[2]:maxi[2]
+#                 for x = mini[1]:maxi[1]
+#                     p = Vec(x, y)
+#                     w = Vec(
+#                         edge_function(f[2], f[3], p),
+#                         edge_function(f[3], f[1], p),
+#                         edge_function(f[1], f[2], p)
+#                     )
+#                     yi, xi = round(Int, y), round(Int, x)
+#                     if all(w-> w <= 0f0, w) && checkbounds(Bool, framebuffers[1], yi, xi)
+#                         bary = w / area
+#                         depth = bary[1] * depths[1] + bary[2] * depths[2] + bary[3] * depths[3]
+#
+#                         if depth <= depthbuffer[yi, xi]
+#                             depthbuffer[yi, xi] = depth
+#                             fragment_in = interpolate(bary, vertex_out, FragNVal)
+#                             fragment_out = fshader(fragment_in, uniforms...)
+#                             for i = eachindex(fragment_out)
+#                                 src_color = framebuffers[i][yi, xi]
+#                                 dest_color = fragment_out[i]
+#                                 fragments_drawn += 1
+#                                 framebuffers[i][yi, xi] = standard_transparency(
+#                                     src_color,
+#                                     RGBA{Float32}(dest_color[1], dest_color[2], dest_color[3], dest_color[4])
+#                                 )
+#                             end
+#                         end
+#                     end
+#                 end
+#             end
+#         end
+#     end
+#     for face in clip_triangles
+#         for point in face
+#             cairo_line_to(cr, point[1], point[2])
+#         end
+#         cairo_close_path(cr);
+#     end
+#     clip(cr)
+#     set_source_surface(cr, image, 0, 0)
+#     paint(cr)
+#     println("fragments drawn: ", fragments_drawn)
+#     return
+# end
+#
+#
+# function rasterizer(
+#         window::AbstractCairoWindow,
+#
+#         vertexarray::AbstractArray,
+#         uniforms::Tuple,
+#         vertexshader,
+#         fragmentshader;
+#
+#         geometryshader = nothing,
+#         max_primitives = 4,
+#         primitive_in = :points,
+#         primitive_out = :triangle_strip,
+#     )
+#     jl_rasterizer()
+# end

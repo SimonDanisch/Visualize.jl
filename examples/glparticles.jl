@@ -27,7 +27,7 @@ immutable Vertex2Geom
     rect::Vec4f0
 end
 
-getuvrect(x) = x.uvrect
+getuv(x) = x.uvrect
 getcolor(x) = x.color
 getstrokecolor(x) = x.strokecolor
 getglowcolor(x) = x.glowcolor
@@ -39,7 +39,7 @@ function vertex_main(vertex, uniforms)
     scale = getscale(vertex)
 
     return Vertex2Geom(
-        getuvrect(vertex),
+        getuv(vertex),
         getcolor(vertex),
         Vec4f0(p[1], p[2], scale[1], scale[2])
     )

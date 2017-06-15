@@ -1,4 +1,5 @@
 abstract type AbstractWindow <: ReactiveComposable end
+
 abstract type WindowEvent <: Field end
 
 """
@@ -173,7 +174,7 @@ module Keyboard
     Buttons
 end
 
-@field Open <: WindowEvent = false
+@field Open <: WindowEvent = true
 @field EnteredWindow <: WindowEvent = false
 @field DroppedFiles <: WindowEvent = String[]
 
@@ -295,3 +296,78 @@ end
 
 
 Base.isopen(x::AbstractWindow) = x[Open]
+
+
+type TimedAction
+    action
+    duration::Float64
+    start::Float64
+    paused::Bool
+    stopped::Bool
+    remove_when_finished::Bool
+end
+
+isplaying(x::TimedAction) = !x.paused
+stop!(x::TimedAction) = (x.stopped = true; return)
+pause!(x::TimedAction) = (x.paused = true; return)
+function play!(x::TimedAction)
+    x.paused = false
+    x.start = time()
+    return
+end
+
+function play!(x::TimedAction, newduration::Float64)
+    x.paused = false
+    x.start = time()
+    x.duration = newduration
+    return
+end
+
+global poll_actions, timed_action, paused_action, get_action_queue, reset_action_queue!
+let action_queue = TimedAction[]
+    get_action_queue() = action_queue
+    reset_action_queue!() = (empty!(action_queue); return)
+    function poll_actions()
+        t = time()
+        filter!(action_queue) do action
+            action.stopped && return false
+            diff = t - action.start
+            if diff <= action.duration
+                action.paused || action.action(diff)
+                return true
+            else
+                action.remove_when_finished ? stop!(action) : pause!(action)
+                return !action.remove_when_finished
+            end
+        end
+        return
+    end
+    """
+    ```
+        timed_action(f::Function, [duration = typemax(Float64), start = time()])
+    ```
+    runs an action `f` for `duration` seconds. You can move the `start` point
+    into the future by adding a third argument start = time() + x seconds.
+    Removes itself after finished
+    """
+    function timed_action(f, duration = typemax(Float64), start = time())
+        @assert start > time()
+        action = TimedAction(f, duration, start, false, false, true)
+        push!(action_queue, action)
+        action
+    end
+
+    """
+    ```
+        timed_action(f::Function, [duration = typemax(Float64), start = time()])
+    ```
+    runs an action `f` for `duration` seconds. You can move the `start` point
+    into the future by adding a third argument start = time() + x seconds.
+    Stays paused in queue. Can be restarted etc. Must be stopped to get removed from queue.
+    """
+    function paused_action(f, duration = typemax(Float64), start = time())
+        action = TimedAction(f, duration, start, false, false, false)
+        push!(action_queue, action)
+        action
+    end
+end

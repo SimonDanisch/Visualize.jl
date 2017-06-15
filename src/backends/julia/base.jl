@@ -2,27 +2,24 @@ module JLRasterization
 
 using Colors, ColorVectorSpace, StaticArrays
 using GeometryTypes, Interpolations
-using ..Visualize: DepthBuffer, ColorBuffer, Area
+using ..Visualize: DepthBuffer, ColorBuffer, Area, Scene, AbstractWindow, Window, Canvas, JLCanvas, AbstractCanvas
 
 using FieldTraits
 using FieldTraits: ComposableLike, @composed, Partial
 import FieldTraits: convertfor, default
 import Interpolations: interpolate
 
-@composed type JLCanvas
-    Area
-    DepthBuffer
-    ColorBuffer
+
+
+
+@composed type JLWindow <: AbstractWindow
+    <: Window
+    Canvas
 end
 
-function default(::Type{DepthBuffer}, canvas::Partial{JLCanvas})
-    w, h = widths(get(canvas, Area))
-    ones(Float32, w, h)
-end
-function default(::Type{ColorBuffer}, canvas::Partial{JLCanvas})
-    w, h = widths(get(canvas, Area))
-    (zeros(RGBA{Float32}, w, h), )
-end
+default(::Type{Canvas}, window::Partial{JLWindow}) = JLCanvas(window.val)
+
+
 
 
 @inline function edge_function(a, b, c)
@@ -179,6 +176,8 @@ function clip2pixel_space(position, resolution)
     p = clipspace[Vec(1, 2)]
     (((p + 1f0) / 2f0) .* (resolution - 1f0)) + 1f0
 end
+
+
 function (r::JLRasterizer{Vert, Args, FragN}){Vert, Args, FragN}(
         canvas, vertex_array::AbstractArray{Vert}, uniforms::Args
     )

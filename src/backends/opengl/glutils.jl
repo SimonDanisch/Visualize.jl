@@ -234,6 +234,39 @@ function Base.setindex!{T, N}(buffer::UniformBuffer{T, N}, element::T, idx::Inte
     GLAbstraction.bind(buff, 0)
     element
 end
+extract_val(::Val{X}) where X = X
+function Base.setindex!{T <: Composable, N, TF}(x::UniformBuffer{T, N}, val::TF, field::Type{<: Field})
+    index = extract_val(FieldTraits.fieldindex(T, field)[1])
+    if index == 0
+        throw(BoundsError(x, field))
+    end
+    val_conv = convert(fieldtype(T, index), val)
+    val_ref = if isbits(val)
+        Base.RefValue(val)
+    elseif isimmutable(val)
+        error("Struct $TF contains pointers and can't be transferred to GPU")
+    else
+        pointer_from_objref(val)
+    end
+    buff = x.buffer
+    GLAbstraction.bind(buff) do
+        glBufferSubData(buff.buffertype, x.offsets[index], sizeof(val_conv), val_ref)
+    end
+    x
+end
+
+function Base.getindex{T <: Composable, N}(x::UniformBuffer{T, N}, field::Type{<: Field})
+    index = extract_val(FieldTraits.fieldindex(T, field)[1])
+    if index == 0
+        throw(BoundsError(x, field))
+    end
+    ET = fieldtype(T, index)
+    val_ref = Ref{ET}()
+    GLAbstraction.bind(x.buffer) do
+        glGetBufferSubData(x.buffer.buffertype, x.offsets[index], sizeof(ET), val_ref)
+    end
+    val_ref[]
+end
 
 function Base.push!{T, N}(buffer::UniformBuffer{T, N}, element::T)
     buffer.length += 1

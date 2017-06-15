@@ -1,6 +1,6 @@
 
-
-function visualize{T <: Colorant}(main, parameters)
-    visualize(Image, main, parameters)
+function visualize(window::AbstractWindow, primitive)
+    drawable, args = Drawable(window, primitive)
+    push!(window[Renderlist], primitive => (drawable, args))
+    return drawable
 end
-compose(x, y)

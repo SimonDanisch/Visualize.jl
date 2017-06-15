@@ -33,7 +33,7 @@ vec4 getcolor(Sprite_2_float x)
 {
     return x.color;
 }
-vec4 getuvrect(Sprite_2_float x)
+vec4 getuv(Sprite_2_float x)
 {
     return x.uv;
 }
@@ -52,7 +52,7 @@ Vertex2Geom vertex_main(Sprite_2_float vertex, TextUniforms uniforms)
     vec2 p;
     p = getposition(vertex);
     scale = getscale(vertex);
-    geom = Vertex2Geom(getuvrect(vertex), getcolor(vertex), vec4(p.x, p.y, scale.x, scale.y));
+    geom = Vertex2Geom(getuv(vertex), getcolor(vertex), vec4(p.x, p.y, scale.x, scale.y));
     return geom;
 }
 // vertex input:

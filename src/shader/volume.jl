@@ -1,58 +1,63 @@
-immutable Vertex2Fragment
-    vert::Vec3f0
+immutable UVWVertex
+    position::Vec3f0
     uvw::Vec3f0
 end
-immutable Canvas
-    eyeposition::Vec3f0
-end
-immutable Uniforms{F}
+
+immutable Uniforms{SV, BF, CF, AF}
     model::Mat4f0
     modelinv::Mat4f0
     isovalue::Float32
-    isorange::Float32
-    algorithm::F
+    startvalue::SV
+    breakloop::BF
+    to_color::CF
+    accumulation::AF
 end
 
-const max_distance = 1.0
-const num_samples = 128
-const step_size = max_distance / float(num_samples)
-const num_ligth_samples = 16
-const lscale = max_distance / float(num_ligth_samples)
-const density_factor = 9
+function vert_volume(vertex, canvas, uniforms, intensities)
+    world_vert = uniforms.model * Visualize.to_vec4(vertex.position)
+    pos = canvas.projectionview * world_vert
+    return (
+        pos,
+        UVWVertex(world_vert[Vec(1, 2, 3)], vertex.uvw)
+    )
+end
 
 function is_outside(position::Vec3f0)
-    position.x > 1.0 || position.y > 1.0 ||
-    position.z > 1.0 || position.x < 0.0 ||
-    position.y < 0.0 || position.z < 0.0)
+    position[1] > 1f0 || position[2] > 1f0 ||
+    position[3] > 1f0 || position[1] < 0f0 ||
+    position[2] < 0f0 || position[3] < 0f0
 end
 
 function mip(accum, pos, stepdir, intensities, uniforms)
-    max(maximum, intensities[pos])
+    max(accum, intensities[pos][1])
 end
 
 function raycast_loop(
-        front::Vec3f0, dir::Vec3f0, stepsize::Float32,
-        accumulation, breakloop, to_color, startvalue,
-        intensities, uniforms
+        front::Vec3f0, dir::Vec3f0, num_samples, stepsize::Float32,
+        uniforms, intensities
     )
     stepsize_dir = dir * stepsize
     pos = front
     pos += stepsize_dir; # apply first, to padd
-    accumulator = startvalue
-    i = 0
-    while (i < num_samples && !is_outside(pos))
-        accumulator = accumulation(accumulator, pos, stepdir, intensities, uniforms)
-        if breakloop(accumulator)
+    accumulator = uniforms.startvalue
+    for i = 1:num_samples
+        if uniforms.breakloop(accumulator) || is_outside(pos)
             break
         end
-        pos += stepsize_dir; i += 1
+        accumulator = uniforms.accumulation(
+            accumulator, pos, stepsize_dir, intensities, uniforms
+        )
+        pos += stepsize_dir
     end
-    return to_color(accumulator, uniforms)
+    return uniforms.to_color(accumulator, uniforms)
 end
 
-
-function frag_volume()
-    Vec3f0 dir = normalize(frag_vert - eyeposition);
-    dir = Vec3f0(modelinv * Vec4f0(dir, 0));
-    color = isosurface(frag_uv, dir, step_size);
+function frag_volume(vertex_out, canvas, uniforms, intensities)
+    max_distance = 1.73f0
+    num_samples = 128
+    step_size = max_distance / Float32(num_samples)
+    dir = normalize(vertex_out.position - canvas.eyeposition)
+    dir = (uniforms.modelinv * Vec4f0(dir[1], dir[2], dir[3], 0f0))[Vec(1, 2, 3)]
+    color = raycast_loop(vertex_out.uvw, dir, num_samples, step_size, uniforms, intensities)
+    (color, )
 end

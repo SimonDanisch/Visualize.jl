@@ -72,7 +72,7 @@ function GLRasterizer{T <: Tuple}(
     block_idx = 0
     uniform_locations = ntuple(N) do i
         if isa(uniforms[i], Texture)
-            GLAbstraction.get_uniform_location(program, "image")
+            GLAbstraction.get_uniform_location(program, "intensities")
         else
             idx = glGetUniformBlockIndex(program, glsl_gensym("UniformArg$i"))
             glUniformBlockBinding(program, idx, block_idx)

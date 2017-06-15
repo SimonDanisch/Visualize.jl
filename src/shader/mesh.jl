@@ -1,25 +1,41 @@
-function vert_mesh(vertex::VertexN, light, shading, args)
-    #args = (solid_color, proj, view)
-    proj = args[2]
-    viewmodel = args[3]
+@field ShadingFunction = blinnphong
 
-    pos = vertex.position
-    position_camspace = viewmodel * Vec4f0(pos[1], pos[2], pos[3],  1f0)
-    # direction to light
-    lightdir = normalize(light.position .- pos)
-    # direction to camera
-    # screen space coordinates of the vertex
-    pos_screen = proj * position_camspace
-    v2frag = Vert2Frag(-position_camspace[Vec(1,2,3)], vertex.normal, lightdir)
-    pos_screen, v2frag
+@composed type MeshUniforms
+    Model
+    Color
+    ShadingFunction
 end
 
-function frag_mesh(vertex_out::Vert2Frag, light, shading, args)
+
+function vert_mesh(vertex::AbstractVertex, canvas, light, shading, uniforms)
+    #args = (solid_color, proj, view)
+    pos = to_vec4(getposition(vertex))
+    mv = canvas.view * uniforms.model
+    position_camspace = mv * pos
+    # direction to light
+    lightdir = normalize(light.position .- pos[Vec(1, 2, 3)])
+    # direction to camera
+    # screen space coordinates of the vertex
+    pos_screen = canvas.projection * position_camspace
+    return (
+        pos_screen,
+        Vert2Frag(
+            getcolor(vertex, uniforms),
+            -position_camspace[Vec(1,2,3)],
+            getnormal(vertex),
+            getuv(vertex),
+            lightdir
+        )
+    )
+end
+
+function frag_mesh(vertex_out::Vert2Frag, canvas, light, shading, uniforms)
     # (solid_color, proj, view)
-    solid_color = args[1]
+    color = vertex_out.color
     V = vertex_out.position
     L = normalize(vertex_out.lightdir)
     N = normalize(vertex_out.normal)
-    c = blinnphong(V, N, L, solid_color, shading, light)
-    (Vec4f0(c[1], c[2], c[3], 1f0),)
+
+    c = uniforms.shadingfunction(V, N, L, color[Vec(1, 2, 3)], shading, light)
+    (Vec4f0(c[1], c[2], c[3], color[4]),)
 end

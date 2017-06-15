@@ -1,35 +1,14 @@
-using FieldTraits
-using FieldTraits: @composed, @field
+using Visualize: vert_linesegments, frag_linesegments, geom_linesegments, LineSegments, Vertices, LineAttributes
 
-@field Position
-@field Color
-
-@composed type GLLineSegments
-    Position
-    Color
-end
-
-using Iterators
-using GeometryTypes, Sugar, Transpiler
-using Transpiler
-
-function test(x)
-    haskey(x, Color)
-end
-
-x = GLLineSegments(
-    (Position => Vec2f0(0),
-    Color => Vec4f0(1))
-)
-@which haskey(x, Color)
-
-m = Transpiler.GLMethod((test, Tuple{typeof(x)}))
-test(x)
-
-@code_llvm(test(x))
-
-println(Sugar.getsource!(m))
-
-function convertfor(::Type{VBO}, p::Partial{GLLineSegments})
-    p
+function Drawable(w::AbstractGLWindow, primitive::LineSegments)
+    vbo = VertexArray(primitive[Vertices], face_type = Face{2, OffsetInteger{1, GLint}})
+    uniforms = UniformBuffer(LineAttributes(primitive))
+    args = (w[Scene], uniforms)
+    raster = GLRasterizer(
+        vbo, args,
+        vert_linesegments, frag_linesegments;
+        geometryshader = geom_linesegments,
+        primitive_in = :lines
+    )
+    raster, (vbo, args)
 end

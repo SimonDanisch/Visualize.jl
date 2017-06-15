@@ -14,7 +14,16 @@ const Q = Quaternions
 
 abstract type AbstractCamera <: ReactiveComposable end
 
-@reactivecomposed type Camera <: AbstractCamera
+@field Camera
+
+function default(::Type{Camera}, x::Partial)
+    PerspectiveCamera(x.val)
+end
+function default(::Type{Area}, x::Partial{<: AbstractCamera})
+    FRect(default(Area))
+end
+
+@reactivecomposed type BasicCamera <: AbstractCamera
     Area
     Projection
     View
@@ -22,7 +31,7 @@ abstract type AbstractCamera <: ReactiveComposable end
 end
 
 @composed type PerspectiveCamera <: AbstractCamera
-    <: Camera
+    <: BasicCamera
     ProjectionType
     Translation
     Rotation
@@ -36,7 +45,7 @@ end
     Far
 end
 
-FieldTraits.default(::Type{PerspectiveCamera}, ::Type{Rotation}) = Vec3f0(0, 0, 0)
+default(::Type{Rotation}, ::Partial{<: AbstractCamera}) = Vec3f0(0, 0, 0)
 
 function add!(cam, ::Type{Translation}, canvas, key, button)
     local last_mousepos::Vec2f0 = Vec2f0(0, 0)
@@ -122,7 +131,8 @@ function add!(cam, ::Type{EyePosition}, ::Type{LookAt})
         return
     end
 end
-function add!(cam, ::Type{Projection}, ::Type{View})
+
+function add!(cam::PerspectiveCamera, ::Type{ProjectionView})
     on(cam, Area, Fov, Near, ProjectionType, LookAt, EyePosition, UpVector) do area, fov, near, projectiontype, lookatv, eyeposition, upvector
         zoom = norm(lookatv - eyeposition)
         # TODO this means you can't set FarClip... SAD!
@@ -171,67 +181,54 @@ end
 
 wscale(screenrect, viewrect) = widths(viewrect) ./ widths(screenrect)
 
-function update_cam!(cam, area)
+function update_cam!(cam::AbstractCamera, area)
     x, y = minimum(area)
     w, h = widths(area) ./ 2f0
-    cam.area = IRect(area.x, area.y, area.w, area.h)
-    cam.projection = orthographicprojection(-w, w, -h, h, -10_000f0, 10_000f0)
-    cam.view = translationmatrix(Vec3f0(-x - w, -y - h, 0))
+    cam[Area] = FRect(area)
+    cam[Projection] = orthographicprojection(-w, w, -h, h, -10_000f0, 10_000f0)
+    cam[View] = translationmatrix(Vec3f0(-x - w, -y - h, 0))
     return
 end
 
-function add!(cam::Camera, window, ::Type{Pan})
+
+
+function add!(cam::AbstractCamera, window, ::Type{Pan})
     @needs window: Mouse.Drag
-    on(window, Mouse.Drag, RefValue(Vec(0.0, 0.0))) do dragging, startpos
+    on(window, Mouse.Drag, Base.RefValue(Vec(0.0, 0.0))) do dragging, startpos
         mp = Vec(window[Mouse.Position])
         if dragging == Mouse.down
             startpos[] = mp
         elseif dragging == Mouse.pressed && ispressed(window, Mouse.middle)
             diff = startpos[] .- mp
+            startpos[] = mp
             a = cam[Area]
             st = diff .* wscale(window[Area], a)
             update_cam!(cam, FRect(minimum(a) .+ st, widths(a)))
         end
-        nothing
-    end
-end
-
-function selection_rect(
-        canvas,
-        key = Mouse.left,
-        button = Set([Keyboard.left_control, Keyboard.space])
-    )
-    @needs canvas: (Mouse.Drag, Mouse.Position)
-    rect = IRect(0, 0, 0, 0)
-    lw = 2f0
-    rect_vis = visualize(
-        Primitive => rect,
-        Pattern => [0.0, lw, 2lw, 3lw, 4lw],
-        Thickness => lw,
-        Color => RGBA(0.7f0, 0.7f0, 0.7f0, 0.9f0)
-    )
-    dragged_rect = on(canvas, Mouse.Drag) do drag
-        if ispressed(canvas, key) && ispressed(canvas, button)
-            if drag == Mouse.down
-                rect_vis[Visible] = true # start displaying
-                rect_vis[Primitive] = IRect(canvas[Mouse.Position], 0, 0)
-            elseif drag == Mouse.pressed
-                min = minimum(rect_vis[Primitive])
-                wh = canvas[Mouse.Position] - min
-                rect_vis[Primitive] = IRect(min, wh)
-            end
-        else
-            # always hide if not the right key is pressed
-            rect_vis[Visible] = false # hide
-        end
         return
     end
-    push!(canvas, rect_vis)
-    rect_vis
+end
+@field Zoom
+function add!(cam::AbstractCamera, window, ::Type{Zoom})
+    @needs window: Mouse.Scroll, Mouse.Position
+    on(window, Mouse.Scroll) do x
+        zoom = Float32(x[2])
+        if zoom != 0
+            a = cam[Area]
+            z = 1 + (zoom * 0.10)
+            mp = window[Mouse.Position]
+            mp = (mp .* wscale(window[Area], a)) + minimum(a)
+            p1, p2 = minimum(a), maximum(a)
+            p1, p2 = p1 - mp, p2 - mp # translate to mouse position
+            p1, p2 = z * p1, z * p2
+            p1, p2 = p1 + mp, p2 + mp
+            update_cam!(cam, FRect(p1, p2 - p1))
+            z
+        end
+    end
 end
 
-
-function reset!(cam, boundingbox, preserveratio = true)
+function reset!(cam::AbstractCamera, boundingbox, preserveratio = true)
     w1 = widths(boundingbox)
     if preserveratio
         w2 = widths(cam[Screen][Area])
@@ -247,4 +244,73 @@ function reset!(cam, boundingbox, preserveratio = true)
     p = minimum(w1) .* 0.001 # 2mm padding
     update_cam!(cam, FRect(-p, -p, w1 .+ 2p))
     return
+end
+
+function selection_rect(
+        canvas,
+        key = Mouse.left,
+        button = Set([Keyboard.left_control, Keyboard.space])
+    )
+    @needs canvas: (Mouse.Drag, Mouse.Position)
+    rect = FRect(0, 0, 0, 0)
+    lw = 2f0
+    rect_vis = visualize(
+        Primitive => rect,
+        Pattern => [0.0, lw, 2lw, 3lw, 4lw],
+        Thickness => lw,
+        Color => RGBA(0.7f0, 0.7f0, 0.7f0, 0.9f0)
+    )
+    dragged_rect = on(canvas, Mouse.Drag) do drag
+        if ispressed(canvas, key) && ispressed(canvas, button)
+            if drag == Mouse.down
+                rect_vis[Visible] = true # start displaying
+                rect_vis[Primitive] = IRect(canvas[Mouse.Position], 0, 0)
+            elseif drag == Mouse.pressed
+                min = minimum(rect_vis[Primitive])
+                wh = canvas[Mouse.Position] - min
+                rect_vis[Primitive] = FRect(min, wh)
+            end
+        else
+            # always hide if not the right key is pressed
+            rect_vis[Visible] = false # hide
+        end
+        return
+    end
+    push!(canvas, rect_vis)
+    rect_vis
+end
+
+lerp{T}(a::T, b::T, val::AbstractFloat) = (a .+ (val * (b .- a)))
+
+function add_restriction!(cam::AbstractCamera, window, rarea::SimpleRectangle, minwidths::Vec)
+    area_ref = Base.RefValue(cam[Area])
+    restrict_action = paused_action(1.0) do t
+        o = lerp(origin(area_ref[]), origin(cam[Area]), t)
+        wh = lerp(widths(area_ref[]), widths(cam[Area]), t)
+        update_cam!(cam, FRect(o, wh))
+    end
+    on(window, Mouse.Drag) do drag
+        if drag == Mouse.up && !isplaying(restrict_action)
+            area = cam[Area]
+            o = origin(area)
+            maxi = maximum(area)
+            newo = max.(o, origin(rarea))
+            newmax = min.(maxi, maximum(rarea))
+            maxi = maxi - newmax
+            newo = newo - maxi
+            newwh = newmax - newo
+            scale = 1f0
+            for (w1, w2) in zip(minwidths, newwh)
+                stmp = w1 > w2 ? w1 / w2 : 1f0
+                scale = max(scale, stmp)
+            end
+            newwh = newwh * scale
+            area_ref[] = FRect(newo, newwh)
+            if area_ref[] != cam[Area]
+                play!(restrict_action)
+            end
+        end
+        return
+    end
+    restrict_action
 end

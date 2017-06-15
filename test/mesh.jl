@@ -1,34 +1,21 @@
 using Visualize, GeometryTypes, ModernGL
-using Visualize.GLRasterization
+using Visualize.JLRasterization
 using Visualize: Debugging
-using Visualize.GLRasterization: swapbuffers!, destroy!
+using Visualize.JLRasterization: JLWindow
 using ModernGL, FileIO
 using Visualize: GLRasterization, Resolution, View, ProjectionView, EyePosition, Projection
 using Visualize: VertexN, Light, MeshUniforms, Shading, vert_mesh, frag_mesh, GLCanvas
 using Visualize: Model, Color, ShadingFunction
 using Colors
 
-window = GLFWWindow(Area => (800, 600), Debugging => true)
-GLCanvas(cam)
+window = JLWindow(Area => (800, 600))
 
-for event in Visualize.NativeWindowEvents
-    add!(window, event)
+canvas = window[Canvas];
+for field in FieldTraits.Fields(eltype(canvas))
+    if haskey(cam, field)
+        FieldTraits.link!(field, cam => canvas)
+    end
 end
-add!(window, Mouse.Drag)
-window[Visualize.Open] = true
-
-cam = PerspectiveCamera(
-    TranslationSpeed => 1f0,
-    LookAt => Vec3f0(0),
-    EyePosition => Vec3f0(6, 6, 8),
-    Rotation => Vec3f0(0),
-    Area => window[Area],
-    RotationSpeed => 0.1f0
-)
-
-
-
-
 
 light = Light(
     Vec3f0(10),
