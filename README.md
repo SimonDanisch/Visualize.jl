@@ -164,7 +164,7 @@ Maybe something like this will be workable:
 ```Julia
 @composed MyTheme
     Color = RGB(0,0,1)
-    (Surface => Color) => colormap("Reds")
+    Surface.Color = colormap("Reds")
 end
 ```
 
