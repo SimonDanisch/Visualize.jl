@@ -1,15 +1,15 @@
-function scale!{N}(c::Composable, val::NTuple{N, Number})
+function scale!{N}(c::Composable, val)
     c[Scale] = val
-    nothing
+    return
 end
-function translate!{N}(c::Composable, val::NTuple{N, Number})
+function translate!{N}(c::Composable, val)
     c[Position] = val
-    nothing
+    return
 end
 
 # TODO allow also Vec2, Vec3, Axis + Float.
 # This will be done by implementing symmetric transforms on the Rotation field type
-function rotate!(c::Composable, val::Quaternion)
+function rotate!(c::Composable, val)
     c[Rotation] = val
-    nothing
+    return
 end

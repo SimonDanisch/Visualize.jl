@@ -1,21 +1,81 @@
+__precompile__(false)
 module Visualize
 
-using Colors, StaticArrays, Quaternions, FieldTraits
-using Compat, GLWindow, GLFW
-using GeometryTypes, Quaternions
+using Iterators
+using Compat, FileIO, FieldTraits
 
-using FieldTraits: @reactivecomposed, @field, Field, UsageError, @needs, Composable
-import FieldTraits: on, Fields, Links, @composed, default, ReactiveComposable
+using FieldTraits: @reactivecomposed, @field, @composed, @needs
+using FieldTraits: Composable, ComposableLike, Field, UsageError, Fields, Links
+using FieldTraits: ReactiveComposable, Partial
+import FieldTraits: on, default, convertfor
+
+using Colors, ColorVectorSpace, StaticArrays
+using GeometryTypes, Quaternions
+using Interpolations
+
+import GLAbstraction, ColorVectorSpace
+import Transpiler: gli
+import Transpiler: mix, smoothstep
+import Transpiler.gli: dFdx, dFdy
 
 import Base: scale!
 
-include("math.jl")
-include("base.jl")
-include("windowbase.jl")
-include("events.jl")
-include("images.jl")
+"""
+Replacement of Pkg.dir("Visualize") --> Visualize.dir,
+returning the correct path
+"""
+dir(dirs...) = joinpath(normpath(dirname(@__FILE__), ".."), dirs...)
 
-#include("opengl/opengl.jl")
+
+"""
+returns path relative to the assets folder
+"""
+assetpath(folders...) = dir("assets", folders...)
+
+"""
+Loads a file from the asset folder
+"""
+function loadasset(folders...; kw_args...)
+    path = assetpath(folders...)
+    isfile(path) || isdir(path) || error("Could not locate file at $path")
+    load(path; kw_args...)
+end
+
+export assetpath, loadasset
+
+
+include("math.jl")
+include("utils.jl")
+include("base.jl")
+include("events.jl")
+
+include("camera.jl")
+include("windowbase.jl")
+
+include("shader/base.jl")
+include("images.jl")
+include("text/textbase.jl")
+
+
+include("backends/julia/base.jl")
+include("backends/cairo/base.jl")
+include("backends/webgl/base.jl")
+include("backends/opengl/base.jl")
+include("visualize.jl")
+
+
+
+using .GLRasterization
+using .JLRasterization
+
+export orthographicprojection, perspectiveprojection, lookat
+export normalmesh, uvmesh, JLCanvas, JLRasterizer, Area, Framebuffer
+export add!, TranslationSpeed, LookAt, EyePosition, ProjectionView, EyePosition
+export RotationSpeed, Translation, Rotation, Keyboard, WindowEvents, Window
+export Mouse, Pan, View, Projection, IRect, Sampler, isopen
+export Resolution, Open, Visible, renderloop, Light, Shading
+export glwindow, ShadingFunction, Mesh, Vertices, visualize
+export Model, Color, Position, LineVertex, LineSegments, Camera, BasicCamera, PerspectiveCamera
 
 
 end # module

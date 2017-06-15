@@ -303,3 +303,41 @@ end
 function FRect(xy::StaticVector, wh::StaticVector)
     SimpleRectangle{Float32}(xy[1], xy[2], wh[1], wh[2])
 end
+
+"""
+To world space of `camera`
+"""
+function to_worldspace{T <: StaticVector}(point::T, camera)
+    to_worldspace(
+        point,
+        camera[ProjectionView],
+        T(widths(camera[Area]))
+    )
+end
+function to_worldspace{T}(
+        p::StaticVector{T},
+        projectionview::Mat4,
+        cam_res::StaticVector
+    )
+    VT = typeof(p)
+    prj_view_inv = inv(projectionview)
+    clip_space = 4 * (VT(p) ./ VT(cam_res))
+    pix_space = Vec{4, T}(
+        clip_space[1],
+        clip_space[2],
+        T(0), w_component(p)
+    )
+    ws = prj_view_inv * pix_space
+    ws # ./ ws[4]
+end
+
+"""
+transforms a position in clipspace (-1, 1) to a pixel space defined by `resolution`.
+Returns pos::Vec{3}
+"""
+function clip2pixel_space(position::Vec{4}, resolution::Vec{2})
+    clipspace = position / position[4]
+    p = clipspace[Vec(1, 2)]
+    p = (((p + 1f0) / 2f0) .* (resolution - 1f0)) + 1f0
+    Vec(p[1], p[2], clipspace[3])
+end

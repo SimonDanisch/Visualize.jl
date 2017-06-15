@@ -1,98 +1,106 @@
-@compat abstract type WindowEvent <: Field end
+@field ColorBuffer
+@field DepthBuffer
 
-module Mouse
-    using FieldTraits
-    using FieldTraits: @field
-    import ..Visualize: WindowEvent
+@field Model = eye(Mat4f0)
+@field Renderlist = []
+@field NativeWindow = nothing
+"""
+Holds general attribute of the scene/window, like camera uniforms and lights.
+"""
+@field Scene = nothing
+@field Canvas = nothing
 
-    @enum Button left = 0 middle = 2 right = 1 # Be GLFW conform
-    @enum DragEnum down up pressed notpressed
+abstract type AbstractScene <: ReactiveComposable end
+abstract type AbstractCanvas <: ReactiveComposable end
 
-    @field Drag <: WindowEvent = notpressed
-    @field Position <: WindowEvent = (0, 0)
-    @field Inside <: WindowEvent = false
-    @field Buttons <: WindowEvent = Set(Button[])
-    @field Scroll <: WindowEvent = (0, 0)
-end
-
-include("keyboard.jl")
-
-@field Window
-
-function default(parent, ::Type{Window})
-    GLWindow.create_glcontext()
-end
-
-@field WindowOpen <: WindowEvent = false
-@field WindowSize <: WindowEvent = (0, 0)
-@field WindowPosition <: WindowEvent = (0, 0)
-@field EnteredWindow <: WindowEvent = false
-@field HasFocus <: WindowEvent = false
-@field DroppedFiles <: WindowEvent = String[]
-
-# Complex events
-
-@field Mouse2Object <: WindowEvent = nothing
-
-
-@reactivecomposed type WindowEvents
-    Window
+@reactivecomposed type JLCanvas <: AbstractCanvas
     Area
-    WindowOpen
-    EnteredWindow
-    HasFocus
-
-    Mouse.Inside
-    Mouse.Buttons
-    Mouse.Position
-    Mouse.Scroll
-    Mouse.Drag
-
-    Keyboard.Buttons
-    Keyboard.Unicode
-
-    DroppedFiles
-    # Complex events
-    # Mouse2Object
+    DepthBuffer
+    ColorBuffer
 end
 
-@composed type Camera <: ReactiveComposable
-    Area
-    View
-    Projection
+function default(::Type{DepthBuffer}, canvas::Partial{<: AbstractCanvas})
+    w, h = widths(get(canvas, Area))
+    ones(Float32, w, h)
 end
-@composed type Canvas <: ReactiveComposable
-    <: Shared
+
+function default(::Type{ColorBuffer}, canvas::Partial{<: AbstractCanvas})
+    w, h = widths(get(canvas, Area))
+    (zeros(RGBA{Float32}, w, h), )
+end
+
+
+@field Ambient = Vec3f0(0.1)
+@field Diffuse = Vec3f0(0.0)
+@field DiffusePower = 1f0
+@field Specular = Vec3f0(0.3)
+@field SpecularPower = 10f0
+
+
+@composed type Light
+    Position::Vec3f0
+    Ambient::Vec3f0
+    Diffuse::Vec3f0
+    DiffusePower::Float32
+    Specular::Vec3f0
+    SpecularPower::Float32
+end
+
+@composed type Window <: AbstractWindow
     <: WindowEvents
-    Spacetransform
+    NativeWindow
+    Camera
+    Renderlist
+    Scene
+    Color
+    Light # TODO Move into Scene, but can't since struct of structs isn't supported very well yet
+end
+function default(::Type{Scene}, p::Partial{<: AbstractWindow})
+    cam = get!(p, Camera)
+    scene = SceneUniforms(cam)
+    for field in FieldTraits.Fields(scene)
+        if haskey(cam, field)
+            FieldTraits.link!(field, cam => scene)
+        end
+    end
+    return scene
 end
 
-#
-# # Window Events are global to the window
-# global const isregistered = WindowEvents(
-#     ntuple(x-> false, nfields(WindowEvents))...
-# )
+Base.isopen(window::AbstractWindow) = window[Open]
 
-# function register_callback(::Type{LeftClick}, composed::Composable)
+
+function getmultiple!(field, parent, tail...)
+    i = start(tail)
+    head = parent
+    while true
+        haskey(head, field) && return get!(head, field)
+        if done(tail, i)
+            def = default(field, parent)
+            parent[field] = def
+            return def
+        end
+        head, i = next(tail, i)
+    end
+end
+
+# function default{AC <: AbstractScene}(::Type{AC}, p::Partial{Window})
+#     cam = get!(p, Camera)
+#     AC(map(field-> getmultiple!(field, p, cam), Fields(AC)))
 # end
-# function register_callback(::Type{MiddleClick}, composed::Composable)
-# end
-# function register_callback(::Type{Mouse2Object}, composed::Composable)
-# end
-#
-# function register_callback{Field <: WindowEvent}(::Type{Field}, composed::Composable)
-#     if !isregistered[Field]
-#         currentbackend().windowcallbacks[Field](
-#             composed[Window], composed
-#         )
-#         isregistered[Field] = true
-#     end
-# end
-# function on{Field <: WindowEvent}(f, ::Type{Field}, composed::Composable, args...)
-#     register_callback(Field, composed)
-#     links = composed[Links]
-#     if haskey(links, field)
-#         # adds a callback to the field
-#         push!(links[field], (f, args))
-#     end
-# end
+
+
+
+
+# Basic functions a window should defined
+function show!(window::AbstractWindow)
+    error("Not implemented for $(typeof(window))")
+end
+function destroy!(window::AbstractWindow)
+    error("Not implemented for $(typeof(window))")
+end
+function swapbuffers!(window::AbstractWindow)
+    error("Not implemented for $(typeof(window))")
+end
+function renderloop(window::AbstractWindow)
+    error("Not implemented for $(typeof(window))")
+end

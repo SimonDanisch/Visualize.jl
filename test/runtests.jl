@@ -1,15 +1,7 @@
-using Visualize
-using Base.Test
+using Visualize, GeometryTypes, ModernGL
+using Visualize.GLRasterization
+using ModernGL, FileIO
+import Visualize: GLRasterization
+using Visualize: VertexN, Light, Shading, vert_mesh, frag_mesh, Debugging
 
-
-function Canvas()
-
-
-
-end
-canvas = Canvas()
-
-x = visualize(img)#::DictionaryLike
-
-
-show(canvas, x)
+include("mesh.jl")
