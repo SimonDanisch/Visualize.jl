@@ -7,7 +7,9 @@
 [![codecov.io](http://codecov.io/github/SimonDanisch/Visualize.jl/coverage.svg?branch=master)](http://codecov.io/github/SimonDanisch/Visualize.jl?branch=master)
 
 
-Successor of [GLVisualize](https://github.com/JuliaGL/GLVisualize.jl/)
+Successor of [GLVisualize](https://github.com/JuliaGL/GLVisualize.jl/).
+Visualize relies on [Transpiler.jl](https://www.heise.de/developer/artikel/Funktionsorientiert-und-schnell-Die-Programmiersprache-Julia-3793160.html), to rewrite all OpenGL code in GLVisualize in Julia. 95% of the OpenGL code is ported by now and mostly high level functionality is missing.
+Please checkout GLVisualize to get an idea of the coming graphics rendering capability in Visualize.jl.
 
 
 # API design
