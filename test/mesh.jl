@@ -8,7 +8,7 @@ using Visualize: VertexN, Light, MeshUniforms, Shading, vert_mesh, frag_mesh, GL
 using Visualize: Model, Color, ShadingFunction
 using Colors
 
-window = JLWindow(Area => (800, 600))
+window = JLWindow((Area => (800, 600),))
 
 canvas = window[Canvas];
 for field in FieldTraits.Fields(eltype(canvas))
@@ -39,9 +39,9 @@ show!(window)
 
 vbo = VertexArray(catmesh);
 
-args = MeshUniforms(
-    ShadingFunction => (V, N, L, color, shading, light) -> return L
-)
+args = MeshUniforms((
+    ShadingFunction => ((V, N, L, color, shading, light) -> return L)
+,))
 
 uniforms = (canvas, map(UniformBuffer, (light, shading, args))...)
 

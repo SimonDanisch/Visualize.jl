@@ -3,7 +3,7 @@ using Visualize: GLRasterization, Uniforms, VertexCS, get_texture_atlas, Sprite2
 using Visualize: orthographicprojection, perspectiveprojection, lookat, normalmesh, ColorBuffer, Area
 using Visualize.JLRasterization: JLCanvas, JLRasterizer
 resolution = (1024, 1024)
-canvas = JLCanvas(Area => SimpleRectangle(0, 0, resolution...))
+canvas = JLCanvas((Area => SimpleRectangle(0, 0, resolution...),))
 
 
 proj = orthographicprojection(SimpleRectangle(0, 0, resolution...), -10_000f0, 10_000f0)
@@ -23,13 +23,8 @@ vertices = [(VertexCS(
     Vec4f0(1, i/N, 0, 1),
     Vec2f0(40, 40)
 ),) for i = 1:N]
+Visualize.visualize(canvas, x)
 
-draw_particles = JLRasterizer(
-    vertices, (uniforms,),
-    Visualize.vertex_main, Visualize.fragment_main;
-    geometryshader = Visualize.geometry_main
-)
-@time draw_particles(canvas, vertices, (uniforms,))
+visualize(canvas, )
 using FileIO, Images
-save("test.png", clamp01.(canvas[Visualize.ColorBuffer][1]))
-pwd()
+save(joinpath(homedir(), "Desktop/test.png"), clamp01.(canvas[Visualize.ColorBuffer][1]))

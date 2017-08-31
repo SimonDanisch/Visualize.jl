@@ -70,7 +70,6 @@ function rasterizer(
     argtypes = (vertex_type, uniform_types...)
     vsource, vertexout = emit_vertex_shader(vertexshader, argtypes)
     vshader = compile_shader(vsource, GL_VERTEX_SHADER, :particle_vert)
-    write(STDOUT, vsource)
     push!(shaders, vshader)
     fragment_in = vertexout # we first assume vertex stage outputs to fragment stage
     if geometryshader != nothing
@@ -81,8 +80,6 @@ function rasterizer(
             primitive_in = primitive_in,
             primitive_out = primitive_out
         )
-        write(STDOUT, gsource)
-        println()
         gshader = compile_shader(gsource, GL_GEOMETRY_SHADER, :particle_geom)
         push!(shaders, gshader)
         fragment_in = geomout # rewire if geometry shader is present
@@ -92,7 +89,6 @@ function rasterizer(
     fsource, fragout = emit_fragment_shader(fragmentshader, argtypes)
     fshader = compile_shader(fsource, GL_FRAGMENT_SHADER, :particle_frag)
     push!(shaders, fshader)
-    write(STDOUT, fsource)
     program = compile_program(shaders...)
     N = length(uniform_types)
     block_idx = 0

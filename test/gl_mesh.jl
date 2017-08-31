@@ -1,14 +1,32 @@
-using Iterators
-using Visualize, GeometryTypes, Colors, ModernGL, FileIO
+using Transpiler, GeometryTypes, StaticArrays
 
-window = Visualize.GLRasterization.glwindow(Light => Light((Position => Vec3f0(10),)))
-# Create a functor
-catmesh = normalmesh(load(Pkg.dir("GLVisualize", "assets", "cat.obj")))
-catmesh = Base.view(
-    reinterpret(Visualize.VertexN, catmesh.parent), catmesh.indexes[1]
+function vert_image(vertex, args)
+    p, uv = vertex
+    proj = args[1]
+    position = proj * Vec{4, eltype(p)}(p[1], p[2], 0f0, 1f0)
+    position, (uv,)
+end
+function frag_image(fragment_in, args)
+    uv, = fragment_in
+    image = args[2]
+    color = image[uv]
+    (color,)
+end
+
+
+vertex = Vec2f0(0), Vec2f0(0)
+args = (eye(Mat4f0),)
+vert_image(vertex, args)
+src, typ = Transpiler.emit_fragment_shader(vert_image, (typeof(vertex), typeof(args)))
+write(STDOUT, src)
+
+using Transpiler: GLMethod
+using Sugar
+x = GLMethod((vert_image, Tuple{typeof(vertex), typeof(args)}))
+rasterizer(
+    window,
+    vbo, args,
+    vert_linesegments, frag_linesegments;
+    geometryshader = geom_linesegments,
+    primitive_in = :lines
 )
-mesh = Mesh((Vertices => catmesh,))
-
-draw_cat = visualize(window, mesh)
-
-renderloop(window)

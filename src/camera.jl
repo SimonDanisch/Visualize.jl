@@ -216,7 +216,7 @@ function add!(cam::AbstractCamera, window, ::Type{Zoom})
         if zoom != 0
             a = cam[Area]
             z = 1 + (zoom * 0.10)
-            mp = window[Mouse.Position]
+            mp = Vec2f0(window[Mouse.Position])
             mp = (mp .* wscale(window[Area], a)) + minimum(a)
             p1, p2 = minimum(a), maximum(a)
             p1, p2 = p1 - mp, p2 - mp # translate to mouse position

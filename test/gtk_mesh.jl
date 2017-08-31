@@ -13,6 +13,9 @@ parent = Gtk.Window("Test", 800, 600, true, true)
 box = Gtk.Box(:v)
 tb = textbox(String)
 sl = GtkReactive.slider(linspace(0.0, 20.0, 100))
+mesh_color = map(sl) do val
+    RGBA{Float32}(val, 0,0,1)
+end
 push!(box, tb)
 push!(box, sl)
 

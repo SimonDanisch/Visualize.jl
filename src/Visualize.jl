@@ -1,7 +1,6 @@
 __precompile__(true)
 module Visualize
 
-using Iterators
 using Compat, FileIO, FieldTraits
 
 using FieldTraits: @reactivecomposed, @field, @composed, @needs
